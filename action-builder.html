@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Order Status — Action Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sidebar-bg:#12141c; --sidebar-icon:#8b8fa8; --sidebar-active:#3b5bfd;
+    --accent-1:#4f6ef7; --accent-2:#8b5cf6;
+    --page-bg:#f5f6f8; --surface:#ffffff;
+    --border:#e5e7eb; --border-strong:#d8dbe0;
+    --text:#111827; --text-muted:#6b7280; --text-faint:#9ca3af;
+    --danger:#dc2626;
+    --success:#16a34a;
+    --purple:#4A2A8C; --purple-soft:#F7F3FE;
+    --radius-lg:16px; --radius-md:10px; --radius-sm:7px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Consolas,monospace;
+    --shadow-modal: 0 24px 64px -16px rgba(15,23,42,.35), 0 4px 16px -4px rgba(15,23,42,.15);
+    --shadow-card: 0 1px 2px rgba(15,23,42,.04), 0 2px 8px -2px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;font-family:var(--font);color:var(--text);background:var(--page-bg);}
+  :focus-visible{outline:2px solid var(--accent-1);outline-offset:1px;}
+
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:60px;background:var(--sidebar-bg);display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:6px;}
+  .sidebar .logo{width:28px;height:28px;border-radius:8px;background:#fff;opacity:.9;margin-bottom:14px;}
+  .sidebar .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--sidebar-icon);font-size:16px;}
+  .sidebar .icon.active{background:var(--sidebar-active);color:#fff;}
+  .page{margin-left:60px;padding:22px 40px;}
+  .crumbs{font-size:13px;color:var(--text-muted);margin-bottom:14px;}
+  .page-title{font-size:26px;font-weight:700;margin:0;}
+  .page-sub{font-size:14px;color:var(--text-muted);margin-top:4px;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:flex-start;justify-content:center;padding:36px 20px;overflow:auto;z-index:10;}
+  .modal{background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-modal);width:100%;max-width:960px;}
+  .modal-header{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px 0;}
+  .modal-title{font-size:20px;font-weight:700;margin:0;}
+  .modal-subtitle{font-size:13.5px;color:var(--text-muted);margin-top:3px;}
+  .modal-close{background:none;border:none;font-size:18px;color:var(--text-faint);cursor:pointer;padding:4px;}
+  .status-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px;vertical-align:middle;text-transform:uppercase;letter-spacing:.03em;}
+  .status-badge.draft{background:#F1F2F5;color:var(--text-muted);}
+  .status-badge.live{background:#DCFCE7;color:#15803D;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;font-size:13.5px;font-weight:600;padding:12px 22px;border-radius:10px;box-shadow:var(--shadow-modal);z-index:100;opacity:0;transition:opacity .25s ease, transform .25s ease;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .toast::before{content:'✓ ';color:#4ADE80;}
+
+  .outcome-match{display:inline-block;background:var(--purple-soft);color:var(--purple);font-family:var(--mono);font-weight:700;font-size:13px;padding:8px 14px;border-radius:8px;margin-bottom:16px;}
+  .live-confirm{border-top:1px solid var(--border);padding-top:16px;margin-top:6px;}
+  .testblock{border-top:2px solid var(--border);margin-top:24px;padding-top:20px;}
+
+  .tabs{display:flex;gap:4px;background:#F1F2F5;border-radius:10px;padding:4px;margin:20px 28px 0;width:fit-content;}
+  .tab{padding:8px 18px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;}
+  .tab.active{background:#fff;color:var(--text);box-shadow:var(--shadow-card);}
+  .modal-body{padding:22px 28px;max-height:64vh;overflow-y:auto;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 28px;border-top:1px solid var(--border);}
+
+  .btn{font-family:var(--font);font-weight:600;font-size:13.5px;padding:9px 18px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:transform .1s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn-outline{background:#fff;border-color:var(--border-strong);color:var(--text);}
+  .btn-outline:hover{background:#F9FAFB;}
+  .btn-primary{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));color:#fff;border:none;}
+  .btn-send{background:linear-gradient(135deg,#FF6C37,#FF8A5C);color:#fff;border:none;}
+  .btn-init{background:var(--purple);color:#fff;border:none;}
+  .btn-ghost{background:none;border:none;color:var(--accent-1);font-weight:600;font-size:12.5px;cursor:pointer;padding:4px 0;}
+
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;}
+  .field .help{font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5;}
+  input,select,textarea{width:100%;font-family:var(--font);font-size:14px;color:var(--text);background:#fff;border:1px solid var(--border-strong);border-radius:8px;padding:9px 11px;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent-1);}
+  .mono{font-family:var(--mono);font-size:13px;}
+  textarea{resize:vertical;min-height:66px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:640px){.row2{grid-template-columns:1fr;}}
+
+  details.adv{margin-top:16px;}
+  details.adv>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-1);list-style:none;}
+  details.adv>summary::-webkit-details-marker{display:none;}
+  details.adv>summary::before{content:'▸ ';font-size:11px;}
+  details.adv[open]>summary::before{content:'▾ ';}
+
+  .req-bar{display:flex;gap:0;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;}
+  .req-bar select{width:110px;border:none;border-right:1px solid var(--border-strong);border-radius:0;font-weight:700;background:#FAFAFB;}
+  .req-bar input{border:none;border-radius:0;flex:1;font-family:var(--mono);}
+  .req-bar .send{border-radius:0;padding:9px 20px;}
+  .url-preview{font-family:var(--mono);font-size:12.5px;color:var(--text-muted);margin-top:8px;}
+  .url-preview .var{background:#FFFBEB;color:#B45309;padding:1px 5px;border-radius:5px;font-weight:600;}
+  .test-result{font-size:12.5px;color:var(--success);margin-top:8px;font-weight:600;}
+  .test-result span{color:var(--text-muted);font-weight:400;}
+  .modetoggle{display:inline-flex;background:#F1F2F5;border-radius:8px;padding:3px;}
+  .modebtn{border:none;background:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer;color:var(--text-muted);}
+  .modebtn.active{background:#fff;color:var(--text);box-shadow:var(--shadow-card);}
+  .loc-tag{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:8px;text-transform:uppercase;}
+  .loc-tag.url{background:#EFF3FF;color:#28418F;}
+  .loc-tag.body{background:#FEF3E7;color:#9A5B13;}
+  .loc-toggle{border:1px solid var(--border-strong);background:#fff;border-radius:8px;font-size:9.5px;font-weight:700;padding:3px 9px;cursor:pointer;text-transform:uppercase;}
+
+  .sec-head{margin-bottom:14px;}
+  .sec-head h3{font-size:14.5px;margin:0 0 3px;}
+  .sec-head p{font-size:12.5px;color:var(--text-muted);margin:0;}
+  .sec-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+
+  .authbox{border:1px solid var(--border);border-radius:10px;padding:16px;background:#FAFAFB;}
+
+  .ptable{display:flex;flex-direction:column;gap:10px;}
+  .prow{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;}
+  .prow-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+  .keychip{font-family:var(--mono);font-size:13px;background:#FAFAFB;border:1px solid var(--border);border-radius:6px;padding:5px 9px;}
+  .auto-tag{font-size:9.5px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:2px 6px;border-radius:8px;margin-left:6px;text-transform:uppercase;}
+  .row-x{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:15px;margin-left:auto;}
+  .row-x:hover{color:var(--danger);}
+  .vis-chip{border:1px solid var(--border-strong);background:#fff;border-radius:14px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+  .vis-chip.public{color:#15803D;border-color:#BBF7D0;background:#F0FDF4;}
+  .vis-chip.hidden{color:#B45309;border-color:#FDE68A;background:#FFFBEB;}
+  .vis-chip.secret{color:#B91C1C;border-color:#FECACA;background:#FEF2F2;}
+
+  .picker{border:1px solid var(--border-strong);border-radius:8px;padding:10px;background:#FAFAFB;}
+  .selected-view{display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+  .dp-label{font-size:13.5px;font-weight:600;}
+  .dp-slug{font-family:var(--mono);font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  .opt{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;border-radius:6px;cursor:pointer;}
+  .opt:hover{background:#fff;}
+  .opt .dp-slug{margin-top:0;}
+  .createopt{color:var(--accent-1);font-weight:600;font-size:12.5px;padding:7px 9px;cursor:pointer;border-top:1px solid var(--border);margin-top:4px;}
+  .createform{display:flex;gap:8px;align-items:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+  .createform>div{flex:1;}
+  .createform label{font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px;}
+  .createform button{width:auto;padding:9px 14px;background:var(--accent-1);color:#fff;border:none;font-weight:700;font-size:12.5px;cursor:pointer;border-radius:8px;}
+  .createform button:disabled{opacity:.45;cursor:not-allowed;}
+
+  .empty-note{font-size:13px;color:var(--text-muted);font-style:italic;padding:16px;text-align:center;border:1.5px dashed var(--border-strong);border-radius:10px;}
+
+  .init-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .resp-wrap{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;}
+  .resp-bar{display:flex;gap:16px;align-items:center;padding:9px 14px;background:#FAFAFB;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .resp-bar .status{color:var(--success);font-weight:700;}
+  .resp-body{padding:14px;font-family:var(--mono);font-size:13px;background:#fff;}
+
+  .detect-row{display:grid;grid-template-columns:26px .9fr 80px .9fr 190px;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);}
+  .detect-row.head{background:#FAFAFB;font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;padding:7px 12px;}
+  .detect-row:last-child{border-bottom:none;}
+  .dp-status{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:8px;text-transform:uppercase;letter-spacing:.02em;}
+  .dp-status.linked{background:#EFF3FF;color:#28418F;}
+  .dp-status.new{background:#F0FDF4;color:#15803D;}
+  .dp-status.flagged{background:#FFFBEB;color:#B45309;border:1px solid #FDE68A;}
+  .dtable{border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .type-select{font-size:10.5px;font-weight:700;padding:3px 20px 3px 8px;border-radius:10px;border:1px solid transparent;cursor:pointer;width:auto;appearance:none;-webkit-appearance:none;background-repeat:no-repeat;background-position:right 6px center;background-size:9px;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 6"><path d="M0 0l5 6 5-6z" fill="%23666"/></svg>');}
+  .type-select:disabled{opacity:.55;cursor:default;}
+  .type-select.type-text{background-color:#DBEAFE;color:#1D4ED8;}
+  .type-select.type-number{background-color:#DCFCE7;color:#15803D;}
+  .type-select.type-yesno{background-color:#F3E8FF;color:#7C3AED;}
+  .type-select.type-date{background-color:#FFE4E6;color:#BE123C;}
+
+  .outcome{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#FAFAFB;}
+  .outcome-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .outcome-top input.oname{font-weight:700;background:#fff;flex:0 0 auto;width:170px;}
+  .chevron-btn{background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;padding:2px 2px;width:16px;flex-shrink:0;}
+  .chevron-btn:hover{color:var(--text);}
+  .collapsed-summary{font-family:var(--mono);font-size:12px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;cursor:pointer;}
+  .outcome-body{margin-top:12px;}
+  .req-star{color:var(--danger);font-size:11px;font-weight:700;margin-left:auto;}
+  .outcome-cond{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:8px;align-items:center;}
+  .outcome-cond select,.outcome-cond input{width:100%;}
+  @media(max-width:640px){.outcome-cond{grid-template-columns:1fr;}}
+  .err-txt{color:var(--danger);font-size:11.5px;margin-top:5px;}
+  .invalid{border-color:var(--danger) !important;}
+
+  .helper-banner{background:#EFF3FF;border:1px solid #D7E1FF;color:#28418F;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:16px;}
+  .helper-banner.purple{background:var(--purple-soft);border-color:#E2D9F5;color:var(--purple);}
+
+  .picker-group{font-size:10.5px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;padding:8px 9px 3px;}
+  .picker-group:not(:first-child){border-top:1px solid var(--border);margin-top:4px;}
+  .hidden-note{font-size:11.5px;color:var(--text-faint);padding:8px 9px 2px;border-top:1px solid var(--border);margin-top:4px;}
+  .kind-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:6px;vertical-align:1px;}
+  .kind-badge{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--purple-soft);color:var(--purple);border:1px solid #E2D9F5;white-space:nowrap;}
+  .opt .meta{display:flex;align-items:center;gap:8px;}
+  .opt .dp-desc{font-size:11px;color:var(--text-faint);margin-top:1px;}
+  .derived-note{background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;border-radius:8px;padding:8px 11px;font-size:11.5px;margin-top:8px;line-height:1.5;}
+  .slug-preview{display:flex;align-items:center;gap:8px;background:#F4F5F7;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:12px;color:var(--text);}
+  .slug-preview .lock{color:var(--text-faint);font-size:10.5px;margin-left:auto;font-family:var(--font);font-weight:700;}
+  .valbox{border-radius:8px;padding:8px 11px;font-size:11.5px;margin-top:8px;line-height:1.55;}
+  .valbox.block{background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;}
+  .valbox.warn{background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;}
+  .valbox button{border:1px solid currentColor;background:#fff;color:inherit;font-weight:700;font-size:10.5px;border-radius:6px;padding:3px 8px;cursor:pointer;margin-top:6px;}
+  .valbox label.confirm{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;cursor:pointer;margin-top:6px;}
+  .valbox label.confirm input{width:auto;}
+  .createform.stacked{display:block;}
+  .createform.stacked .cf-row{display:flex;gap:8px;align-items:flex-end;}
+  .createform.stacked .cf-row>div{flex:1;}
+  .createform.stacked .cf-extra{margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo"></div>
+  <div class="icon">▤</div>
+  <div class="icon">▷</div>
+  <div class="icon active">⚡</div>
+  <div class="icon">▥</div>
+  <div class="icon">☰</div>
+</div>
+<div class="page">
+  <div class="crumbs">Studio <span>/</span> Integrations</div>
+  <h1 class="page-title">NK - Orders &amp; Tracking</h1>
+  <p class="page-sub">Track order history, cancel or reschedule orders</p>
+</div>
+
+<div class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">Edit Action <span class="status-badge draft" id="statusBadge">Draft</span></h2>
+        <p class="modal-subtitle">Update action configuration</p>
+      </div>
+      <button class="modal-close">✕</button>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="basic">Basic</div>
+      <div class="tab" data-tab="inputs">Inputs</div>
+      <div class="tab" data-tab="output">Output</div>
+      <div class="tab" data-tab="outcomes">Outcomes</div>
+    </div>
+
+    <div class="modal-body" id="body"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline">Cancel</button>
+      <button class="btn btn-primary">Update Action</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* The agent/integration this action is being built inside — decides which scoped datapoints are visible. */
+const CONTEXT = { agent:'Orders agent', integration:'NK - Orders & Tracking' };
+
+/* One shared registry for the whole workspace (in the real product this comes from the Datapoint library). */
+let datapointsList = [
+  {label:'Order number', slug:'order-id', description:'Order number, if passed at call start', kind:'identity', source:null, scope:{level:'workspace', name:''}},
+  {label:'Customer ID', slug:'customer-id', description:"The customer's unique identifier", kind:'identity', source:null, scope:{level:'workspace', name:''}},
+  {label:'Customer email', slug:'customer-email', description:"The customer's email address", kind:'identity', source:null, scope:{level:'workspace', name:''}},
+  {label:'Customer name', slug:'customer-name', description:"The customer's full name", kind:'identity', source:null, scope:{level:'workspace', name:''}},
+  {label:'Order status', slug:'order-status', description:'active, expired or not_found', kind:'derived', source:'Order Status', scope:{level:'integration', name:'NK - Orders & Tracking'}},
+  {label:'Cancellable', slug:'cancellable', description:'Whether the order can still be cancelled', kind:'derived', source:'Order Status', scope:{level:'integration', name:'NK - Orders & Tracking'}},
+  {label:'Return reason', slug:'return-reason', description:'Why the item is being returned', kind:'identity', source:null, scope:{level:'agent', name:'Returns agent'}},
+  {label:'Refund eligible', slug:'refund-eligible', description:'Whether a refund is possible', kind:'derived', source:'Check policy', scope:{level:'agent', name:'Returns agent'}},
+];
+
+/* Scope filtering: shared + this agent's + this integration's datapoints are visible here. */
+function inScope(d){
+  return d.scope.level==='workspace'
+    || (d.scope.level==='agent' && d.scope.name===CONTEXT.agent)
+    || (d.scope.level==='integration' && d.scope.name===CONTEXT.integration);
+}
+function visibleDatapoints(){ return datapointsList.filter(inScope); }
+function hiddenCount(){ return datapointsList.length - visibleDatapoints().length; }
+function scopeGroup(d){
+  if (d.scope.level==='workspace') return 'Shared — all agents';
+  if (d.scope.level==='agent') return CONTEXT.agent + ' only';
+  return 'This integration only';
+}
+
+/* Duplicate detection runs against the WHOLE pool — including datapoints hidden by scope. */
+const SYNONYMS = { user:'customer', client:'customer', shopper:'customer', mail:'email', identifier:'id', num:'number', no:'number' };
+function normalizeSlug(slug){ return slug.split('-').map(t=>SYNONYMS[t]||t).join('-'); }
+function levenshtein(a,b){
+  const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  const d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++)d[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return d[m][n];
+}
+function tokenOverlap(a,b){
+  const A=new Set(a.split('-')), B=new Set(b.split('-'));
+  let inter=0; A.forEach(t=>{ if(B.has(t)) inter++; });
+  return inter / Math.max(1, Math.min(A.size,B.size));
+}
+function findExact(slug){ return datapointsList.find(d=>d.slug===slug); }
+function findNear(slug){
+  if(!slug) return null;
+  const n = normalizeSlug(slug);
+  for (const d of datapointsList){
+    if (d.slug!==slug && normalizeSlug(d.slug)===n) return {dp:d, reason:'synonym'};
+  }
+  for (const d of datapointsList){
+    if (d.slug===slug) continue;
+    if (levenshtein(d.slug,slug)<=2) return {dp:d, reason:'levenshtein'};
+    if (tokenOverlap(d.slug,slug)>=0.5) return {dp:d, reason:'token-overlap'};
+  }
+  return null;
+}
+
+const sampleResponse = [
+  {key:'ok', type:'yesno', value:true},
+  {key:'order_id', type:'text', value:'NK-10432'},
+  {key:'status', type:'text', value:'active'},
+  {key:'cancellable', type:'yesno', value:true},
+  {key:'price_total_formatted', type:'text', value:'$284.50'},
+  {key:'tracking_number', type:'text', value:'1Z999AA10123456784'},
+  {key:'estimated_delivery', type:'date', value:'2026-07-09'},
+];
+/* Promotion denylist (demo-level, deliberately minimal): names that are never a business
+   datapoint — pure transport/pagination plumbing. Everything else pre-promotes. */
+const DENYLIST = new Set([
+  'status_code','http_status','code',
+  'meta','page','per_page','total_count','count',
+  'cursor','next_cursor','prev_cursor',
+  'has_more','limit','offset',
+]);
+let nextParamId = 0;
+function newParamId(){ return 'p' + (nextParamId++); }
+
+let state = {
+  activeTab:'basic',
+  name:'Order Status',
+  method:'GET',
+  endpoint:'/api/orders/{order_id}',
+  timeout:5000, retries:2,
+  auth:{ type:'inherit', keyName:'', keyValue:'', token:'', user:'', pass:'' },
+  tested:false,
+  params:[ {id:'p0', key:'order_id', slug:'order-id', visibility:'public', auto:true, location:'url', pickerOpen:false, query:'', source:'datapoint'} ],
+  body:{ mode:'fields', raw:'' },
+  outputMappings:[],
+  outcomes:[
+    {name:'active',    field:'status', operator:'equals', value:'active',    collapsed:true},
+    {name:'expired',   field:'status', operator:'equals', value:'expired',   collapsed:true},
+    {name:'not_found', field:'status', operator:'equals', value:'not_found', collapsed:true},
+  ],
+  isLive:false,
+  testResult:null,
+  testValues:{},   // keyed by param id — survives reorder/removal, works for conversation inputs
+};
+nextParamId = 1;   // seed used p0
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function slugify(s){ return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''); }
+function dpBySlug(slug){ return datapointsList.find(d=>d.slug===slug); }
+
+function syncAutoParams(){
+  const urlTokens = (state.endpoint.match(/\{([^}]+)\}/g)||[]).map(t=>t.slice(1,-1));
+  const bodyEligible = ['POST','PUT','PATCH'].includes(state.method) && state.body.mode==='raw';
+  const bodyTokens = bodyEligible ? (state.body.raw.match(/\{([^}]+)\}/g)||[]).map(t=>t.slice(1,-1)) : [];
+
+  state.params = state.params.filter(p=>{
+    if (!p.auto) return true;
+    if (p.location==='url') return urlTokens.includes(p.key);
+    if (p.location==='body') return bodyTokens.includes(p.key);
+    return true;
+  });
+  urlTokens.forEach(tok=>{
+    if (!state.params.find(p=>p.key===tok && p.location==='url')){
+      const guess = dpBySlug(tok.replace(/_/g,'-'));
+      state.params.push({id:newParamId(), key:tok, slug: guess?guess.slug:'', visibility:'public', auto:true, location:'url', pickerOpen:!guess, query:'', source:'datapoint'});
+    }
+  });
+  bodyTokens.forEach(tok=>{
+    if (!state.params.find(p=>p.key===tok && p.location==='body')){
+      const guess = dpBySlug(tok.replace(/_/g,'-'));
+      state.params.push({id:newParamId(), key:tok, slug: guess?guess.slug:'', visibility:'public', auto:true, location:'body', pickerOpen:!guess, query:'', source:'datapoint'});
+    }
+  });
+}
+
+function endpointPreview(){
+  let s = esc(state.endpoint);
+  (state.endpoint.match(/\{[^}]+\}/g)||[]).forEach(v=>{ s = s.replace(esc(v), `<span class="var">${esc(v)}</span>`); });
+  return s;
+}
+
+function populateDefaultMappings(){
+  if (!state.outputMappings.length){
+    state.outputMappings = sampleResponse.filter(r=>!DENYLIST.has(r.key)).map(r=>({key:r.key, variable:r.key, default:'', type:r.type}));
+    state.outputMappings.forEach(m=>registerOutputDatapoint(m));
+  }
+}
+
+/* Checked output mappings auto-register as derived datapoints — saving the mapping IS the registration.
+   Exact slug match (after normalization) links to the existing entry; a near match creates a flagged entry; otherwise a clean create. */
+function registerOutputDatapoint(m){
+  const slug = slugify(m.variable);
+  if (!slug) return;
+  const exact = findExact(slug);
+  if (exact){
+    m.dpSlug = exact.slug; m.dpStatus = 'linked';
+    return;
+  }
+  const nearHit = findNear(slug);
+  datapointsList.push({
+    label: m.variable.replace(/[_-]+/g,' ').replace(/^./,c=>c.toUpperCase()),
+    slug,
+    description: `Set by the ${state.name} action`,
+    kind:'derived', source: state.name,
+    scope:{level:'integration', name:CONTEXT.integration},
+    possibleDuplicateOf: nearHit ? nearHit.dp.slug : null,
+    autoRegistered: true,
+  });
+  m.dpSlug = slug; m.dpStatus = nearHit ? 'flagged' : 'new';
+}
+
+/* Unchecking removes the datapoint only if this session auto-created it and no input references it. */
+function unregisterOutputDatapoint(m){
+  if (!m.dpSlug || m.dpStatus === 'linked') return;
+  const d = datapointsList.find(x=>x.slug===m.dpSlug);
+  if (d && d.autoRegistered && !state.params.some(p=>p.slug===d.slug)){
+    datapointsList.splice(datapointsList.indexOf(d),1);
+  }
+}
+
+function renderStatusBadge(){
+  const el = document.getElementById('statusBadge');
+  if (!el) return;
+  el.className = 'status-badge ' + (state.isLive ? 'live' : 'draft');
+  el.textContent = state.isLive ? 'Live' : 'Draft';
+}
+
+function markDirty(){
+  state.isLive = false;
+  state.testResult = null;
+  renderStatusBadge();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+function buildVariablesObject(){
+  const obj = {};
+  state.outputMappings.forEach(m=>{
+    const src = sampleResponse.find(r=>r.key===m.key);
+    obj[m.variable] = src ? src.value : (m.default || '');
+  });
+  return obj;
+}
+
+const UNARY_OPS = new Set(['is true','is false','exists','does not exist']);
+
+function evalOutcome(o, variables){
+  if (!o.field) return false;
+  const has = Object.prototype.hasOwnProperty.call(variables, o.field);
+  const v = variables[o.field];
+  switch(o.operator){
+    case 'exists':          return has && v !== '' && v != null;
+    case 'does not exist':  return !has || v === '' || v == null;
+    case 'is true':         return v === true || v === 'true';
+    case 'is false':        return v === false || v === 'false';
+    case 'equals':          return String(v) === String(o.value);
+    case 'does not equal':  return String(v) !== String(o.value);
+    case 'greater than':    return parseFloat(v) >  parseFloat(o.value);
+    case 'less than':       return parseFloat(v) <  parseFloat(o.value);
+    default:                return false;
+  }
+}
+
+function evaluateOutcomes(){
+  const variables = buildVariablesObject();
+  for (const o of state.outcomes){
+    if (evalOutcome(o, variables)) return o.name || '(unnamed outcome)';
+  }
+  return null;
+}
+
+/* ---------------- BASIC ---------------- */
+function renderBasic(){
+  return `
+    <div class="field">
+      <label for="f-name">Name</label>
+      <input type="text" id="f-name" value="${esc(state.name)}" />
+      <div class="help">What this action is called wherever it's used in the platform.</div>
+    </div>
+
+    <div class="field">
+      <label>Request</label>
+      <div class="req-bar">
+        <select id="f-method">
+          ${['GET','POST','PUT','PATCH','DELETE'].map(m=>`<option ${m===state.method?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <input type="text" id="f-endpoint" class="mono" value="${esc(state.endpoint)}" placeholder="/api/orders/{order_id}" style="border-right:none;" />
+      </div>
+      <div class="url-preview" id="urlPreview">${endpointPreview() || '&nbsp;'}</div>
+      <div class="help">Method + Endpoint combined, Postman-style. Use {variable} for path parameters — parameters you add here show up automatically on the Inputs tab.</div>
+    </div>
+
+    ${['POST','PUT','PATCH'].includes(state.method) ? `
+    <div class="field">
+      <label>Body</label>
+      <div class="modetoggle">
+        <button class="modebtn ${state.body.mode==='fields'?'active':''}" data-bodymode="fields" type="button">Fields</button>
+        <button class="modebtn ${state.body.mode==='raw'?'active':''}" data-bodymode="raw" type="button">Raw JSON</button>
+      </div>
+      ${state.body.mode==='fields' ? `
+        <div class="help" style="margin-top:8px;">Add body fields from the Inputs tab — click + Add Mapping and set its Location to Body.</div>
+      ` : `
+        <textarea id="f-bodyraw" class="mono" style="margin-top:8px;min-height:90px;" placeholder='{"reason": "{cancellation_reason}"}'>${esc(state.body.raw)}</textarea>
+        <div class="help">Use {variable} anywhere in here — picked up on the Inputs tab automatically, tagged Body, same as the endpoint.</div>
+      `}
+    </div>` : ''}
+
+    <div class="field">
+      <label>Authorization</label>
+      <div class="authbox">
+        <select id="f-authtype">
+          <option value="inherit" ${state.auth.type==='inherit'?'selected':''}>Inherit from connection (NK - Orders &amp; Tracking)</option>
+          <option value="none" ${state.auth.type==='none'?'selected':''}>No Auth</option>
+          <option value="apikey" ${state.auth.type==='apikey'?'selected':''}>API Key</option>
+          <option value="bearer" ${state.auth.type==='bearer'?'selected':''}>Bearer Token</option>
+          <option value="basic" ${state.auth.type==='basic'?'selected':''}>Basic Auth</option>
+        </select>
+        ${renderAuthFields()}
+      </div>
+      <div class="help">Pick a Type and only the fields that type needs show up. Most actions should stay on "Inherit."</div>
+    </div>
+
+    <details class="adv">
+      <summary>Advanced settings (Timeout, Retries)</summary>
+      <div class="row2" style="margin-top:14px;">
+        <div class="field"><label for="f-timeout">Timeout (ms)</label><input type="number" id="f-timeout" value="${state.timeout}" /></div>
+        <div class="field"><label for="f-retries">Retries</label><input type="number" id="f-retries" value="${state.retries}" /></div>
+      </div>
+    </details>
+
+    <div class="testblock">
+      <div class="sec-head"><h3>Test &amp; go live</h3><p>A real call, using real values — the only way this action can go live.</p></div>
+      ${renderTestSection()}
+    </div>
+  `;
+}
+
+function renderTestSection(){
+  if (!state.params.length){
+    return `<div class="empty-note">Add inputs on the Inputs tab first — once every input has a datapoint, real test fields show up here.</div>`;
+  }
+  const incomplete = state.params.filter(p=>!p.slug);
+  if (incomplete.length){
+    return `<div class="empty-note">${incomplete.length} input${incomplete.length>1?'s still need':' still needs'} a datapoint on the Inputs tab before you can test with real values.</div>`;
+  }
+
+  // One literal field per input — regardless of value-source. Collected inputs have no build-time
+  // value, so we ask for a stand-in purely to fire a real call. Keyed by stable param id.
+  const rows = state.params.map(p=>{
+    const dp = dpBySlug(p.slug);
+    const label = dp ? dp.label : (p.key || '(input)');
+    const src = p.source==='conversation'
+      ? '<span class="kind-badge" style="margin-left:6px;">collected in conversation</span>' : '';
+    return `
+    <div class="field">
+      <label>${esc(label)} <span class="dp-slug" style="display:inline;">${esc(p.key)}</span>${src}</label>
+      <input type="text" data-testval="${esc(p.id)}" value="${esc(state.testValues[p.id]||'')}" placeholder="Enter a real value to test with" />
+    </div>`;
+  }).join('');
+
+  let resultHtml = '';
+  if (state.testResult){
+    const respLines = sampleResponse.map(x=>`  <span style="color:#B45309;">"${x.key}"</span>: <span style="color:${x.type==='yesno'?'#7C3AED':x.type==='date'?'#BE123C':'#15803D'};">${typeof x.value==='string'?'"'+x.value+'"':x.value}</span>`).join(',<br>');
+    resultHtml = `
+      <div class="resp-wrap">
+        <div class="resp-bar"><span class="status">● 200 OK</span><span style="color:var(--text-faint);">212 ms</span></div>
+        <div class="resp-body">{<br>${respLines}<br>}</div>
+      </div>
+      <div class="help" style="margin-bottom:6px;">Matched outcome:</div>
+      ${state.testResult.matchedOutcome ? `<div class="outcome-match">${esc(state.testResult.matchedOutcome)}</div>` : `<div class="empty-note">No outcome matched this response — check your Outcomes conditions.</div>`}
+      <div class="live-confirm">
+        ${state.isLive ? `<div class="test-result">✓ This action is live — agents and procedures can use it.</div>` : `
+          <div class="help" style="margin-bottom:10px;">Connection works. Set this action live so it can actually be used.</div>
+          <button class="btn btn-primary" id="btn-setlive">Set live</button>
+        `}
+      </div>
+    `;
+  }
+
+  return `
+    ${rows}
+    <div class="field">
+      <button class="btn btn-init" id="btn-runtest">Run test</button>
+      <div class="help">Field mapping happens on the Output tab once this passes. Editing anything on any tab resets this back to Draft.</div>
+    </div>
+    ${resultHtml}
+  `;
+}
+
+function renderAuthFields(){
+  const a = state.auth;
+  if (a.type==='apikey') return `
+    <div class="row2" style="margin-top:12px;">
+      <div class="field"><label>Key</label><input type="text" id="auth-keyname" class="mono" value="${esc(a.keyName)}" placeholder="X-Api-Key" /></div>
+      <div class="field"><label>Value</label><input type="text" id="auth-keyvalue" class="mono" value="${esc(a.keyValue)}" placeholder="•••••••" /></div>
+    </div>`;
+  if (a.type==='bearer') return `<div class="field" style="margin-top:12px;"><label>Token</label><input type="text" id="auth-token" class="mono" value="${esc(a.token)}" placeholder="•••••••" /></div>`;
+  if (a.type==='basic') return `
+    <div class="row2" style="margin-top:12px;">
+      <div class="field"><label>Username</label><input type="text" id="auth-user" value="${esc(a.user)}" /></div>
+      <div class="field"><label>Password</label><input type="text" id="auth-pass" value="${esc(a.pass)}" placeholder="•••••••" /></div>
+    </div>`;
+  if (a.type==='none') return `<div class="help" style="margin-top:10px;">No credentials will be sent with this request.</div>`;
+  return `<div class="help" style="margin-top:10px;">Using the API key already configured for this connection under Settings.</div>`;
+}
+
+/* ---------------- INPUTS ---------------- */
+function filteredDatapoints(query, source){
+  const q=(query||'').toLowerCase();
+  // Collect-from-conversation can only bind a value the agent asks for — never an API-derived one.
+  return visibleDatapoints().filter(d => source!=='conversation' || d.kind!=='derived')
+    .filter(d => !q || d.label.toLowerCase().includes(q) || d.slug.includes(q) || (d.description||'').toLowerCase().includes(q));
+}
+
+function renderParamRow(p,i){
+  const dp = dpBySlug(p.slug);
+  const showLoc = ['POST','PUT','PATCH'].includes(state.method);
+  const locHtml = !showLoc ? '' : p.auto
+      ? `<span class="loc-tag ${p.location}">${p.location}</span>`
+      : `<button class="loc-toggle" data-cycleloc="${i}">${p.location}</button>`;
+  const collect = p.source==='conversation';
+  const kindBadge = dp
+    ? (dp.kind==='derived' ? `<span class="kind-badge">Set by ${esc(dp.source)}</span>`
+      : dp.kind==='collected' ? `<span class="kind-badge">Collected in conversation</span>` : '')
+    : '';
+  const boundNote = dp && dp.kind==='derived'
+      ? `<div class="derived-note">⚠ <strong>${esc(dp.slug)}</strong> is set by the <strong>${esc(dp.source)}</strong> action. It will be empty unless that action has already run in the conversation before this one.</div>`
+    : dp && dp.kind==='collected'
+      ? `<div class="derived-note">⚠ <strong>${esc(dp.slug)}</strong> is collected in conversation. It will be empty unless the agent has asked for it earlier in this conversation.</div>`
+    : '';
+
+  const sourceToggle = `
+    <div class="modetoggle" style="margin-bottom:8px;">
+      <button class="modebtn ${!collect?'active':''}" data-srcmode="${i}:datapoint" type="button">Bind datapoint</button>
+      <button class="modebtn ${collect?'active':''}" data-srcmode="${i}:conversation" type="button">Collect from conversation</button>
+    </div>`;
+
+  const pickerHtml = p.pickerOpen ? `
+    <div class="picker">
+      <input type="text" id="search-${i}" placeholder="${collect?'Search collectable datapoints…':'Search datapoints by name or description...'}" style="margin-bottom:8px;" />
+      <div id="resultsList-${i}"></div>
+      <div class="createopt" id="createlink-${i}">+ Create new ${collect?'collected ':''}datapoint</div>
+      <div id="createArea-${i}"></div>
+    </div>` : dp ? `
+    <div class="picker selected-view" data-reopen="${i}">
+      <div>
+        <div class="dp-label">${esc(dp.label)} ${kindBadge}</div>
+        <div class="dp-slug">${esc(dp.slug)}</div>
+      </div>
+      <span style="font-size:12px;color:var(--accent-1);">Change</span>
+    </div>
+    ${boundNote}` : `
+    <div class="picker selected-view" data-reopen="${i}">
+      <div style="color:var(--text-muted);font-size:13px;">${collect?'Choose or create a collected datapoint…':'Choose a datapoint…'}</div>
+      <span style="font-size:12px;color:var(--accent-1);">Pick</span>
+    </div>`;
+
+  return `
+    <div class="prow" data-row="${i}">
+      <div class="prow-top">
+        <span class="keychip">${esc(p.key)||'(key)'}${p.auto?'<span class="auto-tag">auto</span>':''}</span>
+        ${locHtml}
+        <button class="vis-chip ${p.visibility}" data-cyclevis="${i}">${p.visibility}</button>
+        <button class="row-x" data-remove-param="${i}">✕</button>
+      </div>
+      ${p.auto ? '' : `<input type="text" class="mono" data-editkey="${i}" value="${esc(p.key)}" placeholder="Action Input Key" style="margin-bottom:8px;" />`}
+      ${sourceToggle}
+      ${pickerHtml}
+    </div>`;
+}
+
+function renderInputs(){
+  return `
+    <div class="sec-top">
+      <div class="sec-head">
+        <h3>Default Input Mappings</h3>
+        <p>Map action inputs to datapoints. Parameters in the Endpoint appear here automatically, tagged "auto."</p>
+      </div>
+      <button class="btn-ghost" id="btn-add-param">+ Add Mapping</button>
+    </div>
+    <div class="ptable">
+      ${state.params.map((p,i)=>renderParamRow(p,i)).join('') || '<div class="empty-note">No inputs mapped yet.</div>'}
+    </div>
+  `;
+}
+
+function wireInputsRow(i){
+  const p = state.params[i];
+  const reopen = document.querySelector(`[data-reopen="${i}"]`);
+  if (reopen) reopen.onclick = () => { state.params[i].pickerOpen = true; state.params[i].query=''; renderTabs(); };
+  if (!p.pickerOpen) return;
+
+  const search = document.getElementById('search-'+i);
+  const refresh = () => {
+    const filtered = filteredDatapoints(state.params[i].query, state.params[i].source);
+    const list = document.getElementById('resultsList-'+i);
+    const groups = ['Shared — all agents', CONTEXT.agent+' only', 'This integration only'];
+    let html = '';
+    groups.forEach(g=>{
+      const items = filtered.filter(d=>scopeGroup(d)===g);
+      if (!items.length) return;
+      html += `<div class="picker-group">${esc(g)}</div>`;
+      html += items.map(d=>`
+        <div class="opt" data-pickslug="${esc(d.slug)}">
+          <span>
+            <span style="font-size:13px;">${d.kind==='identity'?'<span class="kind-dot" title="Always available"></span>':''}${esc(d.label)}</span>
+            <div class="dp-desc">${esc(d.description||'')}</div>
+          </span>
+          <span class="meta">
+            ${d.kind==='derived' ? `<span class="kind-badge">Set by ${esc(d.source)}</span>` : ''}
+            <span class="dp-slug">${esc(d.slug)}</span>
+          </span>
+        </div>`).join('');
+    });
+    if (!html) html = '<p class="help" style="margin:6px 0;">No matches in this agent\'s scope.</p>';
+    if (hiddenCount() > 0 && !state.params[i].query){
+      html += `<div class="hidden-note">${hiddenCount()} datapoint${hiddenCount()>1?'s':''} from other agents hidden — widen their scope in the Datapoint library to use them here.</div>`;
+    }
+    list.innerHTML = html;
+    document.getElementById('createlink-'+i).textContent = state.params[i].query ? `+ Create "${state.params[i].query}" as a new datapoint` : '+ Create new datapoint';
+    list.querySelectorAll('[data-pickslug]').forEach(el=>{
+      el.onclick = () => {
+        state.params[i].slug = el.dataset.pickslug; state.params[i].pickerOpen = false; state.params[i].query='';
+        markDirty();
+        renderTabs();
+      };
+    });
+  };
+  if (search) search.oninput = e => { state.params[i].query = e.target.value; refresh(); };
+  refresh();
+
+  const createlink = document.getElementById('createlink-'+i);
+  if (createlink) createlink.onclick = () => {
+    document.getElementById('createArea-'+i).innerHTML = `
+      <div class="createform stacked">
+        <div class="cf-row">
+          <div><label>Label</label><input id="newlabel-${i}" type="text" placeholder="Loyalty tier" autocomplete="off" /></div>
+          <div><label>Slug — auto-generated</label><div class="slug-preview"><span id="newslug-${i}">loyalty-tier</span><span class="lock">🔒</span></div></div>
+        </div>
+        <div class="cf-row cf-extra">
+          <div><label>Scope</label>
+            <select id="newscope-${i}">
+              <option value="workspace|" ${p.source==='conversation'?'':'selected'}>Shared — all agents</option>
+              <option value="agent|${esc(CONTEXT.agent)}">${esc(CONTEXT.agent)} only</option>
+              <option value="integration|${esc(CONTEXT.integration)}" ${p.source==='conversation'?'selected':''}>This integration only</option>
+            </select>
+          </div>
+          <button id="addbtn-${i}" disabled>Add</button>
+        </div>
+        <div id="newval-${i}"></div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">Slug is generated from the label and locked — one datapoint can never exist under two spellings. Type, description and example value can be set later in the Datapoint library.</div>
+      </div>`;
+    const nl = document.getElementById('newlabel-'+i);
+    const slugEl = document.getElementById('newslug-'+i);
+    const addBtn = document.getElementById('addbtn-'+i);
+    const valArea = document.getElementById('newval-'+i);
+    let nearConfirmed = false;
+
+    const validate = () => {
+      const slug = slugify(nl.value);
+      slugEl.textContent = slug || 'type-a-label-first';
+      valArea.innerHTML = '';
+      if (!slug){ addBtn.disabled = true; return; }
+
+      const exact = findExact(slug);
+      if (exact){
+        const visible = inScope(exact);
+        valArea.innerHTML = `
+          <div class="valbox block">
+            <strong>Already exists:</strong> "${esc(exact.label)}" (${esc(exact.slug)}${visible?'':' — scoped to '+esc(exact.scope.name)}). Use the existing one — never create a copy.
+            ${visible ? `<br><button data-useexisting="${esc(exact.slug)}">Use existing datapoint</button>` : `<br><span style="font-size:11px;">Widen its scope in the Datapoint library to use it here.</span>`}
+          </div>`;
+        const useBtn = valArea.querySelector('[data-useexisting]');
+        if (useBtn) useBtn.onclick = () => {
+          state.params[i].slug = useBtn.dataset.useexisting; state.params[i].pickerOpen = false; state.params[i].query='';
+          markDirty(); renderTabs();
+        };
+        addBtn.disabled = true;
+        return;
+      }
+
+      const nearHit = findNear(slug);
+      if (nearHit){
+        const near = nearHit.dp;
+        const msg = nearHit.reason==='synonym'
+          ? `<strong>Almost certainly the same:</strong> "${esc(near.label)}" (${esc(near.slug)}) — user/client → customer and mail → email count as synonyms.`
+          : `<strong>Similar to existing:</strong> "${esc(near.label)}" (${esc(near.slug)}). If it's the same thing, pick that one instead.`;
+        valArea.innerHTML = `
+          <div class="valbox warn">
+            ${msg}
+            ${inScope(near) ? `<br><button data-usenear="${esc(near.slug)}">Use ${esc(near.slug)} instead</button>` : ''}
+            <label class="confirm"><input type="checkbox" id="nearok-${i}" /> Genuinely different — create anyway (flagged for review in the Datapoint library)</label>
+          </div>`;
+        const useBtn = valArea.querySelector('[data-usenear]');
+        if (useBtn) useBtn.onclick = () => {
+          state.params[i].slug = useBtn.dataset.usenear; state.params[i].pickerOpen = false; state.params[i].query='';
+          markDirty(); renderTabs();
+        };
+        document.getElementById('nearok-'+i).onchange = e => { nearConfirmed = e.target.checked; addBtn.disabled = !nearConfirmed; };
+        addBtn.disabled = !nearConfirmed;
+        return;
+      }
+
+      nearConfirmed = false;
+      addBtn.disabled = false;
+    };
+
+    nl.value = state.params[i].query;
+    nl.oninput = () => { nearConfirmed = false; validate(); };
+    validate();
+
+    addBtn.onclick = () => {
+      const label = nl.value.trim();
+      const slug = slugify(label);
+      if (!label || !slug || findExact(slug) || addBtn.disabled) return;
+      const nearHit = findNear(slug);
+      const [level, name] = document.getElementById('newscope-'+i).value.split('|');
+      const collected = state.params[i].source==='conversation';
+      datapointsList.push(collected
+        ? {label, slug, description:label, kind:'collected', source:state.name, scope:{level, name}, possibleDuplicateOf: nearHit ? nearHit.dp.slug : null, autoRegistered:true}
+        : {label, slug, description:label, kind:'identity', source:null, scope:{level, name}, possibleDuplicateOf: nearHit ? nearHit.dp.slug : null});
+      state.params[i].slug = slug; state.params[i].pickerOpen = false; state.params[i].query='';
+      markDirty();
+      renderTabs();
+      showToast(nearHit ? `Created "${label}" — flagged as possible duplicate of ${nearHit.dp.slug}` : `Created datapoint "${label}"`);
+    };
+    nl.focus();
+  };
+}
+
+/* ---------------- OUTPUT ---------------- */
+function renderOutput(){
+  if (!state.testResult){
+    return `
+      <div class="sec-head">
+        <h3>Output Mappings</h3>
+        <p>Map API response fields directly into runtime variables. Available as $variables.&lt;name&gt; in decisions and other steps.</p>
+      </div>
+      <div class="empty-note">Run the test on the Basic tab first — real datapoint values, a real response, and it detects each field's type for you here.</div>
+    `;
+  }
+
+  const respLines = sampleResponse.map(r=>`  <span style="color:#B45309;">"${r.key}"</span>: <span style="color:${r.type==='yesno'?'#7C3AED':r.type==='date'?'#BE123C':'#15803D'};">${typeof r.value==='string'?'"'+r.value+'"':r.value}</span>`).join(',<br>');
+
+  const detectRows = sampleResponse.map(r=>{
+    const m = state.outputMappings.find(x=>x.key===r.key);
+    const checked = !!m;
+    const currentType = m ? m.type : r.type;
+    let dpHtml = '<span style="font-size:11px;color:var(--text-faint);">not promoted</span>';
+    if (m && m.dpSlug){
+      const tag = m.dpStatus==='linked' ? '<span class="dp-status linked">existing</span>'
+                : m.dpStatus==='flagged' ? '<span class="dp-status flagged">⚠ dup?</span>'
+                : '<span class="dp-status new">new</span>';
+      dpHtml = `<span class="keychip" style="font-size:11px;padding:3px 7px;" title="${esc(state.name)} &gt; ${esc(r.key)}">${esc(state.name)} &gt; ${esc(m.dpSlug)}</span> ${tag}`;
+    }
+    return `
+    <div class="detect-row" data-key="${r.key}">
+      <input type="checkbox" data-detect="${r.key}" ${checked?'checked':''} />
+      <span class="mono">${esc(r.key)}</span>
+      <select class="type-select type-${currentType}" data-typeoverride="${r.key}" ${checked?'':'disabled'}>
+        <option value="text" ${currentType==='text'?'selected':''}>text</option>
+        <option value="number" ${currentType==='number'?'selected':''}>number</option>
+        <option value="yesno" ${currentType==='yesno'?'selected':''} title="Shows up as true / false">Boolean</option>
+        <option value="date" ${currentType==='date'?'selected':''}>date</option>
+      </select>
+      <input type="text" class="mono" data-varname="${r.key}" value="${esc(m?m.variable:r.key)}" ${checked?'':'disabled'} />
+      <span style="white-space:nowrap;">${dpHtml}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="sec-head"><h3>Response</h3><p>From your test request — from either tab.</p></div>
+    <div class="resp-wrap">
+      <div class="resp-bar"><span class="status">● 200 OK</span><span style="color:var(--text-faint);">184 ms</span></div>
+      <div class="resp-body">{<br>${respLines}<br>}</div>
+    </div>
+    <div class="sec-head"><h3>Detected fields</h3><p>Everything the response returns is captured and usable inside flows that call ${esc(state.name)}. A <strong>checked</strong> field is also <strong>promoted to a datapoint</strong> in the shared pool — set by ${esc(state.name)} — so other actions and agents can pick it too. Uncheck to keep a field local (captured, not promoted); nothing is discarded. Everything but recognized plumbing (status codes, pagination) is promoted by default. Exact matches link to the existing datapoint instead of copying; near matches are promoted but flagged for review.</p></div>
+    <div class="dtable">
+      <div class="detect-row head"><span></span><span>Response Path</span><span>Type</span><span>Variable Name</span><span>Datapoint</span></div>
+      ${detectRows}
+    </div>
+  `;
+}
+
+/* ---------------- OUTCOMES ---------------- */
+const OPERATORS = ['equals','does not equal','is true','is false','exists','does not exist','greater than','less than'];
+
+function renderOutcomes(){
+  const fields = state.outputMappings.map(m=>m.variable);
+  const noFields = fields.length===0;
+
+  const summaryText = o => {
+    if (!o.field) return 'No condition yet';
+    if (UNARY_OPS.has(o.operator)) return `${o.field} ${o.operator}`;
+    return `${o.field} ${o.operator} ${o.value||'…'}`;
+  };
+
+  const cards = state.outcomes.map((o,i)=>{
+    const unary = UNARY_OPS.has(o.operator);
+    const invalid = !o.field || (!unary && String(o.value).trim()==='');
+    const header = `
+      <div class="outcome-top">
+        <button class="chevron-btn" data-togglecollapse="${i}">${o.collapsed?'▸':'▾'}</button>
+        <span style="font-size:12.5px;color:var(--text-muted);">Outcome name</span>
+        <input type="text" class="oname mono" data-oname="${i}" value="${esc(o.name)}" placeholder="e.g. active" />
+        ${o.collapsed ? `<span class="collapsed-summary" data-togglecollapse="${i}">${esc(summaryText(o))}</span>` : ''}
+        <span class="req-star">${invalid ? '* Incomplete' : ''}</span>
+        <button class="row-x" data-remove-outcome="${i}">✕</button>
+      </div>`;
+    if (o.collapsed) return `<div class="outcome" data-oi="${i}">${header}</div>`;
+
+    const fieldOpts = `<option value="" ${o.field?'':'selected'} disabled>Choose a field…</option>` +
+      fields.map(f=>`<option value="${esc(f)}" ${f===o.field?'selected':''}>${esc(f)}</option>`).join('');
+    const opOpts = OPERATORS.map(op=>`<option value="${esc(op)}" ${op===o.operator?'selected':''}>${esc(op)}</option>`).join('');
+
+    return `
+    <div class="outcome" data-oi="${i}">
+      ${header}
+      <div class="outcome-body">
+        <label style="font-size:12.5px;">Condition</label>
+        <div class="help" style="margin:2px 0 8px;">This outcome fires when the chosen response field matches. No typing except the value.</div>
+        <div class="outcome-cond">
+          <select class="mono" data-ofield="${i}" ${noFields?'disabled':''}>${fieldOpts}</select>
+          <select class="mono" data-oop="${i}">${opOpts}</select>
+          ${unary ? '' : `<input type="text" class="mono ${invalid?'invalid':''}" data-oval="${i}" value="${esc(o.value||'')}" placeholder="value" />`}
+        </div>
+        ${invalid ? '<div class="err-txt">Pick a field'+(unary?'':' and enter a value')+'</div>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const fieldNote = noFields
+    ? `<div class="empty-note">No promoted fields yet — promote at least one response field on the Output tab, then build outcomes from it.</div>`
+    : '';
+
+  return `
+    <div class="sec-top">
+      <div class="sec-head"><h3>Outcomes</h3><p>The named results this action can return.</p></div>
+      <button class="btn-ghost" id="btn-add-outcome" ${noFields?'disabled':''}>+ Add Outcome</button>
+    </div>
+    ${fieldNote}
+    ${cards || (noFields ? '' : '<div class="empty-note">No outcomes defined. Add outcomes to handle different results from this action (e.g., "active", "expired", "not_found").</div>')}
+  `;
+}
+
+/* ---------------- SHELL ---------------- */
+function renderTabs(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
+  const body = document.getElementById('body');
+  if (state.activeTab==='basic') body.innerHTML = `<div class="helper-banner">Method + URL, Postman-style. Real testing — with real values — happens at the bottom of this tab.</div>` + renderBasic();
+  if (state.activeTab==='inputs') body.innerHTML = `<div class="helper-banner purple">One shared datapoint pool, filtered to this agent: the picker shows Shared datapoints plus ones scoped to ${esc(CONTEXT.agent)} / this integration. Names are picked, never typed — new ones get a locked, auto-generated slug with duplicate checks against the whole pool.</div>` + renderInputs();
+  if (state.activeTab==='output') body.innerHTML = renderOutput();
+  if (state.activeTab==='outcomes') body.innerHTML = `<div class="helper-banner purple">Outcomes are the named results this action can return — like <strong>active</strong>, <strong>expired</strong>, or <strong>not found</strong>. Pick a response field and the value that defines each result. Your flow then decides what to do for each outcome. You're describing <strong>what can happen</strong>; the flow decides <strong>where each one goes</strong>.</div>` + renderOutcomes();
+  renderStatusBadge();
+  wireBody();
+}
+
+function wireBody(){
+  const body = document.getElementById('body');
+
+  const fname = document.getElementById('f-name');
+  if (fname) fname.oninput = e => { state.name = e.target.value; markDirty(); };
+  const fmethod = document.getElementById('f-method');
+  if (fmethod) fmethod.onchange = e => { state.method = e.target.value; syncAutoParams(); markDirty(); renderTabs(); };
+  const fendpoint = document.getElementById('f-endpoint');
+  if (fendpoint){
+    fendpoint.oninput = e => {
+      state.endpoint = e.target.value;
+      const prev = document.getElementById('urlPreview');
+      if (prev) prev.innerHTML = endpointPreview() || '&nbsp;';
+      markDirty();
+    };
+    fendpoint.onblur = () => { syncAutoParams(); renderTabs(); };
+  }
+  body.querySelectorAll('[data-bodymode]').forEach(el=>el.onclick=()=>{
+    state.body.mode = el.dataset.bodymode;
+    syncAutoParams();
+    markDirty();
+    renderTabs();
+  });
+  const fbodyraw = document.getElementById('f-bodyraw');
+  if (fbodyraw){
+    fbodyraw.oninput = e => { state.body.raw = e.target.value; markDirty(); };
+    fbodyraw.onblur = () => { syncAutoParams(); renderTabs(); };
+  }
+  const ftimeout = document.getElementById('f-timeout');
+  if (ftimeout) ftimeout.oninput = e => { state.timeout = e.target.value; markDirty(); };
+  const fretries = document.getElementById('f-retries');
+  if (fretries) fretries.oninput = e => { state.retries = e.target.value; markDirty(); };
+  const fauthtype = document.getElementById('f-authtype');
+  if (fauthtype) fauthtype.onchange = e => { state.auth.type = e.target.value; markDirty(); renderTabs(); };
+  ['keyname','keyvalue','token','user','pass'].forEach(f=>{
+    const el = document.getElementById('auth-'+f);
+    if (el) el.oninput = e => { state.auth[f==='keyname'?'keyName':f==='keyvalue'?'keyValue':f] = e.target.value; markDirty(); };
+  });
+
+  if (state.activeTab==='basic'){
+    body.querySelectorAll('[data-testval]').forEach(el=>el.addEventListener('input', ()=>{
+      state.testValues[el.dataset.testval] = el.value;
+      el.classList.remove('invalid');
+      state.testResult = null;
+    }));
+    const runTestBtn = document.getElementById('btn-runtest');
+    if (runTestBtn) runTestBtn.onclick = () => {
+      let allFilled = true;
+      state.params.forEach(p=>{
+        const el = document.querySelector(`[data-testval="${p.id}"]`);
+        const val = (state.testValues[p.id]||'').trim();
+        if (!val){ allFilled = false; if (el) el.classList.add('invalid'); }
+      });
+      if (!allFilled) return;
+      populateDefaultMappings();
+      state.testResult = { ok:true, matchedOutcome: evaluateOutcomes() };
+      renderTabs();
+    };
+    const setLiveBtn = document.getElementById('btn-setlive');
+    if (setLiveBtn) setLiveBtn.onclick = () => {
+      state.isLive = true;
+      renderTabs();
+      showToast('Successfully set live');
+    };
+  }
+
+  if (state.activeTab==='inputs'){
+    body.querySelectorAll('[data-cyclevis]').forEach(el=>el.onclick=()=>{
+      const i = Number(el.dataset.cyclevis);
+      const order = ['public','hidden','secret'];
+      state.params[i].visibility = order[(order.indexOf(state.params[i].visibility)+1)%3];
+      markDirty();
+      renderTabs();
+    });
+    body.querySelectorAll('[data-cycleloc]').forEach(el=>el.onclick=()=>{
+      const i = Number(el.dataset.cycleloc);
+      state.params[i].location = state.params[i].location==='url' ? 'body' : 'url';
+      markDirty();
+      renderTabs();
+    });
+    body.querySelectorAll('[data-remove-param]').forEach(el=>el.onclick=()=>{ state.params.splice(Number(el.dataset.removeParam),1); markDirty(); renderTabs(); });
+    body.querySelectorAll('[data-editkey]').forEach(el=>el.addEventListener('input', ()=>{ state.params[Number(el.dataset.editkey)].key = el.value; markDirty(); }));
+    body.querySelectorAll('[data-srcmode]').forEach(el=>el.onclick=()=>{
+      const [i, mode] = el.dataset.srcmode.split(':');
+      const p = state.params[Number(i)];
+      if (p.source===mode) return;
+      p.source = mode;
+      // A binding valid under the old source may be invalid under the new one (e.g. a derived
+      // datapoint can't be collected) — clear it and reopen the picker for a fresh pick.
+      p.slug = ''; p.pickerOpen = true; p.query = '';
+      markDirty();
+      renderTabs();
+    });
+    const addParam = document.getElementById('btn-add-param');
+    if (addParam) addParam.onclick = ()=>{
+      const loc = ['POST','PUT','PATCH'].includes(state.method) ? 'body' : 'url';
+      state.params.push({id:newParamId(), key:'', slug:'', visibility:'public', auto:false, location:loc, pickerOpen:true, query:'', source:'datapoint'});
+      markDirty();
+      renderTabs();
+    };
+    state.params.forEach((p,i)=>wireInputsRow(i));
+  }
+
+  body.querySelectorAll('[data-detect]').forEach(el=>el.addEventListener('change', ()=>{
+    const key = el.dataset.detect;
+    const idx = state.outputMappings.findIndex(m=>m.key===key);
+    if (el.checked && idx<0){
+      const m = {key, variable:key, default:'', type: sampleResponse.find(r=>r.key===key).type};
+      state.outputMappings.push(m);
+      registerOutputDatapoint(m);
+      if (m.dpStatus==='linked') showToast(`Linked to existing datapoint ${m.dpSlug}`);
+      else if (m.dpStatus==='flagged') showToast(`Promoted ${m.dpSlug} — flagged as possible duplicate`);
+      else showToast(`Promoted new datapoint ${m.dpSlug}`);
+    }
+    if (!el.checked && idx>=0){
+      unregisterOutputDatapoint(state.outputMappings[idx]);
+      state.outputMappings.splice(idx,1);
+    }
+    markDirty();
+    renderTabs();
+  }));
+  body.querySelectorAll('[data-typeoverride]').forEach(el=>el.addEventListener('change', ()=>{
+    const m = state.outputMappings.find(x=>x.key===el.dataset.typeoverride);
+    if (m) m.type = el.value;
+    markDirty();
+    renderTabs();
+  }));
+  body.querySelectorAll('[data-varname]').forEach(el=>el.addEventListener('input', ()=>{
+    const m = state.outputMappings.find(x=>x.key===el.dataset.varname);
+    if (m) m.variable = el.value;
+    markDirty();
+  }));
+
+  body.querySelectorAll('[data-oname]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oname)].name = el.value; markDirty(); }));
+  body.querySelectorAll('[data-ofield]').forEach(el=>el.onchange=()=>{ state.outcomes[Number(el.dataset.ofield)].field = el.value; markDirty(); renderTabs(); });
+  body.querySelectorAll('[data-oop]').forEach(el=>el.onchange=()=>{
+    const o = state.outcomes[Number(el.dataset.oop)];
+    o.operator = el.value;
+    if (UNARY_OPS.has(o.operator)) o.value = '';   // unary ops carry no literal
+    markDirty(); renderTabs();
+  });
+  body.querySelectorAll('[data-oval]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oval)].value = el.value; markDirty(); }));
+  body.querySelectorAll('[data-remove-outcome]').forEach(el=>el.onclick=()=>{ state.outcomes.splice(Number(el.dataset.removeOutcome),1); markDirty(); renderTabs(); });
+  body.querySelectorAll('[data-togglecollapse]').forEach(el=>el.onclick=()=>{
+    const i = Number(el.dataset.togglecollapse);
+    state.outcomes[i].collapsed = !state.outcomes[i].collapsed;
+    renderTabs();
+  });
+  const addOutcome = document.getElementById('btn-add-outcome');
+  if (addOutcome) addOutcome.onclick = ()=>{ state.outcomes.push({name:'', field:'', operator:'equals', value:'', collapsed:false}); markDirty(); renderTabs(); };
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ state.activeTab = t.dataset.tab; renderTabs(); });
+renderTabs();
+</script>
+</body>
+</html>
