@@ -51,12 +51,13 @@
 
   .outcome-match{display:inline-block;background:var(--purple-soft);color:var(--purple);font-family:var(--mono);font-weight:700;font-size:13px;padding:8px 14px;border-radius:8px;margin-bottom:16px;}
   .live-confirm{border-top:1px solid var(--border);padding-top:16px;margin-top:6px;}
-  .testblock{border-top:2px solid var(--border);margin-top:24px;padding-top:20px;}
 
-  .tabs{display:flex;gap:4px;background:#F1F2F5;border-radius:10px;padding:4px;margin:20px 28px 0;width:fit-content;}
-  .tab{padding:8px 18px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;}
-  .tab.active{background:#fff;color:var(--text);box-shadow:var(--shadow-card);}
-  .modal-body{padding:22px 28px;max-height:64vh;overflow-y:auto;}
+  .page-section{padding:24px 0;border-top:1px solid var(--border);}
+  .page-section:first-child{padding-top:6px;border-top:none;}
+  .page-section-head{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .page-section-head h2{font-size:16px;font-weight:700;margin:0;}
+  .sec-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--purple-soft);color:var(--purple);font-size:12px;font-weight:700;flex-shrink:0;}
+  .modal-body{padding:8px 28px 22px;max-height:72vh;overflow-y:auto;}
   .modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 28px;border-top:1px solid var(--border);}
 
   .btn{font-family:var(--font);font-weight:600;font-size:13.5px;padding:9px 18px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:transform .1s ease;}
@@ -105,8 +106,6 @@
   .sec-head h3{font-size:14.5px;margin:0 0 3px;}
   .sec-head p{font-size:12.5px;color:var(--text-muted);margin:0;}
   .sec-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
-
-  .authbox{border:1px solid var(--border);border-radius:10px;padding:16px;background:#FAFAFB;}
 
   .ptable{display:flex;flex-direction:column;gap:10px;}
   .prow{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;}
@@ -222,13 +221,6 @@
       <button class="modal-close">✕</button>
     </div>
 
-    <div class="tabs" id="tabs">
-      <div class="tab active" data-tab="basic">Basic</div>
-      <div class="tab" data-tab="inputs">Inputs</div>
-      <div class="tab" data-tab="output">Output</div>
-      <div class="tab" data-tab="outcomes">Outcomes</div>
-    </div>
-
     <div class="modal-body" id="body"></div>
 
     <div class="modal-footer">
@@ -322,12 +314,10 @@ let nextParamId = 0;
 function newParamId(){ return 'p' + (nextParamId++); }
 
 let state = {
-  activeTab:'basic',
   name:'Order Status',
   method:'GET',
   endpoint:'/api/orders/{order_id}',
   timeout:5000, retries:2,
-  auth:{ type:'inherit', keyName:'', keyValue:'', token:'', user:'', pass:'' },
   tested:false,
   params:[ {id:'p0', key:'order_id', slug:'order-id', visibility:'public', auto:true, location:'url', pickerOpen:false, query:'', source:'datapoint'} ],
   body:{ mode:'fields', raw:'' },
@@ -348,9 +338,9 @@ function slugify(s){ return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').re
 function dpBySlug(slug){ return datapointsList.find(d=>d.slug===slug); }
 
 function syncAutoParams(){
-  const urlTokens = (state.endpoint.match(/\{([^}]+)\}/g)||[]).map(t=>t.slice(1,-1));
+  const urlTokens = (state.endpoint.match(/\{(\w+)\}/g)||[]).map(t=>t.slice(1,-1));
   const bodyEligible = ['POST','PUT','PATCH'].includes(state.method) && state.body.mode==='raw';
-  const bodyTokens = bodyEligible ? (state.body.raw.match(/\{([^}]+)\}/g)||[]).map(t=>t.slice(1,-1)) : [];
+  const bodyTokens = bodyEligible ? (state.body.raw.match(/\{(\w+)\}/g)||[]).map(t=>t.slice(1,-1)) : [];
 
   state.params = state.params.filter(p=>{
     if (!p.auto) return true;
@@ -374,7 +364,7 @@ function syncAutoParams(){
 
 function endpointPreview(){
   let s = esc(state.endpoint);
-  (state.endpoint.match(/\{[^}]+\}/g)||[]).forEach(v=>{ s = s.replace(esc(v), `<span class="var">${esc(v)}</span>`); });
+  (state.endpoint.match(/\{\w+\}/g)||[]).forEach(v=>{ s = s.replace(esc(v), `<span class="var">${esc(v)}</span>`); });
   return s;
 }
 
@@ -424,9 +414,19 @@ function renderStatusBadge(){
   el.textContent = state.isLive ? 'Live' : 'Draft';
 }
 
+// Full invalidation: the request itself changed (endpoint, method, inputs, auth) — the prior
+// test no longer describes what will be sent, so drop the response and force a re-test.
 function markDirty(){
   state.isLive = false;
   state.testResult = null;
+  renderStatusBadge();
+}
+
+// Config-only edit: mapping choices on the Output tab (promote/type/rename) don't change the
+// request that was sent, so the tested response stays valid and visible. Still drops Live —
+// re-running is how you re-publish — but keeps testResult so the detected-fields list survives.
+function markConfigDirty(){
+  state.isLive = false;
   renderStatusBadge();
 }
 
@@ -492,7 +492,7 @@ function renderBasic(){
         <input type="text" id="f-endpoint" class="mono" value="${esc(state.endpoint)}" placeholder="/api/orders/{order_id}" style="border-right:none;" />
       </div>
       <div class="url-preview" id="urlPreview">${endpointPreview() || '&nbsp;'}</div>
-      <div class="help">Method + Endpoint combined, Postman-style. Use {variable} for path parameters — parameters you add here show up automatically on the Inputs tab.</div>
+      <div class="help">Method + Endpoint combined, Postman-style. Use {variable} for path parameters — parameters you add here show up automatically in the Inputs section.</div>
     </div>
 
     ${['POST','PUT','PATCH'].includes(state.method) ? `
@@ -503,27 +503,12 @@ function renderBasic(){
         <button class="modebtn ${state.body.mode==='raw'?'active':''}" data-bodymode="raw" type="button">Raw JSON</button>
       </div>
       ${state.body.mode==='fields' ? `
-        <div class="help" style="margin-top:8px;">Add body fields from the Inputs tab — click + Add Mapping and set its Location to Body.</div>
+        <div class="help" style="margin-top:8px;">Add body fields in the Inputs section — click + Add Mapping and set its Location to Body.</div>
       ` : `
         <textarea id="f-bodyraw" class="mono" style="margin-top:8px;min-height:90px;" placeholder='{"reason": "{cancellation_reason}"}'>${esc(state.body.raw)}</textarea>
-        <div class="help">Use {variable} anywhere in here — picked up on the Inputs tab automatically, tagged Body, same as the endpoint.</div>
+        <div class="help">Use {variable} anywhere in here — picked up in the Inputs section automatically, tagged Body, same as the endpoint.</div>
       `}
     </div>` : ''}
-
-    <div class="field">
-      <label>Authorization</label>
-      <div class="authbox">
-        <select id="f-authtype">
-          <option value="inherit" ${state.auth.type==='inherit'?'selected':''}>Inherit from connection (NK - Orders &amp; Tracking)</option>
-          <option value="none" ${state.auth.type==='none'?'selected':''}>No Auth</option>
-          <option value="apikey" ${state.auth.type==='apikey'?'selected':''}>API Key</option>
-          <option value="bearer" ${state.auth.type==='bearer'?'selected':''}>Bearer Token</option>
-          <option value="basic" ${state.auth.type==='basic'?'selected':''}>Basic Auth</option>
-        </select>
-        ${renderAuthFields()}
-      </div>
-      <div class="help">Pick a Type and only the fields that type needs show up. Most actions should stay on "Inherit."</div>
-    </div>
 
     <details class="adv">
       <summary>Advanced settings (Timeout, Retries)</summary>
@@ -532,21 +517,16 @@ function renderBasic(){
         <div class="field"><label for="f-retries">Retries</label><input type="number" id="f-retries" value="${state.retries}" /></div>
       </div>
     </details>
-
-    <div class="testblock">
-      <div class="sec-head"><h3>Test &amp; go live</h3><p>A real call, using real values — the only way this action can go live.</p></div>
-      ${renderTestSection()}
-    </div>
   `;
 }
 
 function renderTestSection(){
   if (!state.params.length){
-    return `<div class="empty-note">Add inputs on the Inputs tab first — once every input has a datapoint, real test fields show up here.</div>`;
+    return `<div class="empty-note">Map inputs in the Inputs section above first — once every input has a datapoint, real test fields show up here.</div>`;
   }
   const incomplete = state.params.filter(p=>!p.slug);
   if (incomplete.length){
-    return `<div class="empty-note">${incomplete.length} input${incomplete.length>1?'s still need':' still needs'} a datapoint on the Inputs tab before you can test with real values.</div>`;
+    return `<div class="empty-note">${incomplete.length} input${incomplete.length>1?'s still need':' still needs'} a datapoint in the Inputs section above before you can test with real values.</div>`;
   }
 
   // One literal field per input — regardless of value-source. Collected inputs have no build-time
@@ -574,10 +554,7 @@ function renderTestSection(){
       <div class="help" style="margin-bottom:6px;">Matched outcome:</div>
       ${state.testResult.matchedOutcome ? `<div class="outcome-match">${esc(state.testResult.matchedOutcome)}</div>` : `<div class="empty-note">No outcome matched this response — check your Outcomes conditions.</div>`}
       <div class="live-confirm">
-        ${state.isLive ? `<div class="test-result">✓ This action is live — agents and procedures can use it.</div>` : `
-          <div class="help" style="margin-bottom:10px;">Connection works. Set this action live so it can actually be used.</div>
-          <button class="btn btn-primary" id="btn-setlive">Set live</button>
-        `}
+        <div class="test-result">✓ 200 OK — this action is now live. Agents and procedures can use it.</div>
       </div>
     `;
   }
@@ -585,28 +562,11 @@ function renderTestSection(){
   return `
     ${rows}
     <div class="field">
-      <button class="btn btn-init" id="btn-runtest">Run test</button>
-      <div class="help">Field mapping happens on the Output tab once this passes. Editing anything on any tab resets this back to Draft.</div>
+      <button class="btn btn-init" id="btn-runtest">Test &amp; set live</button>
+      <div class="help">Fires a real call with these values. On a 200 the action goes live in the same step — no separate publish. Editing anything resets it back to Draft, so re-run to go live again.</div>
     </div>
     ${resultHtml}
   `;
-}
-
-function renderAuthFields(){
-  const a = state.auth;
-  if (a.type==='apikey') return `
-    <div class="row2" style="margin-top:12px;">
-      <div class="field"><label>Key</label><input type="text" id="auth-keyname" class="mono" value="${esc(a.keyName)}" placeholder="X-Api-Key" /></div>
-      <div class="field"><label>Value</label><input type="text" id="auth-keyvalue" class="mono" value="${esc(a.keyValue)}" placeholder="•••••••" /></div>
-    </div>`;
-  if (a.type==='bearer') return `<div class="field" style="margin-top:12px;"><label>Token</label><input type="text" id="auth-token" class="mono" value="${esc(a.token)}" placeholder="•••••••" /></div>`;
-  if (a.type==='basic') return `
-    <div class="row2" style="margin-top:12px;">
-      <div class="field"><label>Username</label><input type="text" id="auth-user" value="${esc(a.user)}" /></div>
-      <div class="field"><label>Password</label><input type="text" id="auth-pass" value="${esc(a.pass)}" placeholder="•••••••" /></div>
-    </div>`;
-  if (a.type==='none') return `<div class="help" style="margin-top:10px;">No credentials will be sent with this request.</div>`;
-  return `<div class="help" style="margin-top:10px;">Using the API key already configured for this connection under Settings.</div>`;
 }
 
 /* ---------------- INPUTS ---------------- */
@@ -675,13 +635,17 @@ function renderParamRow(p,i){
 }
 
 function renderInputs(){
+  const isBodyMethod = ['POST','PUT','PATCH'].includes(state.method);
   return `
     <div class="sec-top">
       <div class="sec-head">
         <h3>Default Input Mappings</h3>
-        <p>Map action inputs to datapoints. Parameters in the Endpoint appear here automatically, tagged "auto."</p>
+        <p>Map action inputs to datapoints. Tokens in the Endpoint${isBodyMethod?' and JSON body':''} appear here automatically, tagged "auto." Add as many of each kind as you need.</p>
       </div>
-      <button class="btn-ghost" id="btn-add-param">+ Add Mapping</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" id="btn-add-bind">+ Bind datapoint</button>
+        <button class="btn-ghost" id="btn-add-collect">+ Collect from conversation</button>
+      </div>
     </div>
     <div class="ptable">
       ${state.params.map((p,i)=>renderParamRow(p,i)).join('') || '<div class="empty-note">No inputs mapped yet.</div>'}
@@ -692,7 +656,7 @@ function renderInputs(){
 function wireInputsRow(i){
   const p = state.params[i];
   const reopen = document.querySelector(`[data-reopen="${i}"]`);
-  if (reopen) reopen.onclick = () => { state.params[i].pickerOpen = true; state.params[i].query=''; renderTabs(); };
+  if (reopen) reopen.onclick = () => { state.params[i].pickerOpen = true; state.params[i].query=''; renderPage(); };
   if (!p.pickerOpen) return;
 
   const search = document.getElementById('search-'+i);
@@ -727,7 +691,7 @@ function wireInputsRow(i){
       el.onclick = () => {
         state.params[i].slug = el.dataset.pickslug; state.params[i].pickerOpen = false; state.params[i].query='';
         markDirty();
-        renderTabs();
+        renderPage();
       };
     });
   };
@@ -778,7 +742,7 @@ function wireInputsRow(i){
         const useBtn = valArea.querySelector('[data-useexisting]');
         if (useBtn) useBtn.onclick = () => {
           state.params[i].slug = useBtn.dataset.useexisting; state.params[i].pickerOpen = false; state.params[i].query='';
-          markDirty(); renderTabs();
+          markDirty(); renderPage();
         };
         addBtn.disabled = true;
         return;
@@ -799,7 +763,7 @@ function wireInputsRow(i){
         const useBtn = valArea.querySelector('[data-usenear]');
         if (useBtn) useBtn.onclick = () => {
           state.params[i].slug = useBtn.dataset.usenear; state.params[i].pickerOpen = false; state.params[i].query='';
-          markDirty(); renderTabs();
+          markDirty(); renderPage();
         };
         document.getElementById('nearok-'+i).onchange = e => { nearConfirmed = e.target.checked; addBtn.disabled = !nearConfirmed; };
         addBtn.disabled = !nearConfirmed;
@@ -826,7 +790,7 @@ function wireInputsRow(i){
         : {label, slug, description:label, kind:'identity', source:null, scope:{level, name}, possibleDuplicateOf: nearHit ? nearHit.dp.slug : null});
       state.params[i].slug = slug; state.params[i].pickerOpen = false; state.params[i].query='';
       markDirty();
-      renderTabs();
+      renderPage();
       showToast(nearHit ? `Created "${label}" — flagged as possible duplicate of ${nearHit.dp.slug}` : `Created datapoint "${label}"`);
     };
     nl.focus();
@@ -841,7 +805,7 @@ function renderOutput(){
         <h3>Output Mappings</h3>
         <p>Map API response fields directly into runtime variables. Available as $variables.&lt;name&gt; in decisions and other steps.</p>
       </div>
-      <div class="empty-note">Run the test on the Basic tab first — real datapoint values, a real response, and it detects each field's type for you here.</div>
+      <div class="empty-note">Run the test above first — real datapoint values, a real response, and it detects each field's type for you here.</div>
     `;
   }
 
@@ -874,7 +838,7 @@ function renderOutput(){
   }).join('');
 
   return `
-    <div class="sec-head"><h3>Response</h3><p>From your test request — from either tab.</p></div>
+    <div class="sec-head"><h3>Response</h3><p>From your test request above.</p></div>
     <div class="resp-wrap">
       <div class="resp-bar"><span class="status">● 200 OK</span><span style="color:var(--text-faint);">184 ms</span></div>
       <div class="resp-body">{<br>${respLines}<br>}</div>
@@ -935,7 +899,7 @@ function renderOutcomes(){
   }).join('');
 
   const fieldNote = noFields
-    ? `<div class="empty-note">No promoted fields yet — promote at least one response field on the Output tab, then build outcomes from it.</div>`
+    ? `<div class="empty-note">No promoted fields yet — promote at least one response field in the Output section above, then build outcomes from it.</div>`
     : '';
 
   return `
@@ -949,13 +913,41 @@ function renderOutcomes(){
 }
 
 /* ---------------- SHELL ---------------- */
-function renderTabs(){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===state.activeTab));
+function sectionHead(num, title){
+  return `<div class="page-section-head"><span class="sec-num">${num}</span><h2>${esc(title)}</h2></div>`;
+}
+
+function renderPage(){
   const body = document.getElementById('body');
-  if (state.activeTab==='basic') body.innerHTML = `<div class="helper-banner">Method + URL, Postman-style. Real testing — with real values — happens at the bottom of this tab.</div>` + renderBasic();
-  if (state.activeTab==='inputs') body.innerHTML = `<div class="helper-banner purple">One shared datapoint pool, filtered to this agent: the picker shows Shared datapoints plus ones scoped to ${esc(CONTEXT.agent)} / this integration. Names are picked, never typed — new ones get a locked, auto-generated slug with duplicate checks against the whole pool.</div>` + renderInputs();
-  if (state.activeTab==='output') body.innerHTML = renderOutput();
-  if (state.activeTab==='outcomes') body.innerHTML = `<div class="helper-banner purple">Outcomes are the named results this action can return — like <strong>active</strong>, <strong>expired</strong>, or <strong>not found</strong>. Pick a response field and the value that defines each result. Your flow then decides what to do for each outcome. You're describing <strong>what can happen</strong>; the flow decides <strong>where each one goes</strong>.</div>` + renderOutcomes();
+  body.innerHTML = `
+    <div class="page-section">
+      ${sectionHead(1,'General')}
+      ${renderBasic()}
+    </div>
+
+    <div class="page-section">
+      ${sectionHead(2,'Inputs')}
+      <div class="helper-banner purple">One shared datapoint pool, filtered to this agent: the picker shows Shared datapoints plus ones scoped to ${esc(CONTEXT.agent)} / this integration. Names are picked, never typed — new ones get a locked, auto-generated slug with duplicate checks against the whole pool.</div>
+      ${renderInputs()}
+    </div>
+
+    <div class="page-section">
+      ${sectionHead(3,'Test & go live')}
+      <div class="helper-banner">A real call with real values. On a 200 the action goes live in the same step — this is the only way it can go live.</div>
+      ${renderTestSection()}
+    </div>
+
+    <div class="page-section">
+      ${sectionHead(4,'Output')}
+      ${renderOutput()}
+    </div>
+
+    <div class="page-section">
+      ${sectionHead(5,'Outcomes')}
+      <div class="helper-banner purple">Outcomes are the named results this action can return — like <strong>active</strong>, <strong>expired</strong>, or <strong>not found</strong>. Pick a response field and the value that defines each result. Your flow then decides what to do for each outcome. You're describing <strong>what can happen</strong>; the flow decides <strong>where each one goes</strong>.</div>
+      ${renderOutcomes()}
+    </div>
+  `;
   renderStatusBadge();
   wireBody();
 }
@@ -966,7 +958,7 @@ function wireBody(){
   const fname = document.getElementById('f-name');
   if (fname) fname.oninput = e => { state.name = e.target.value; markDirty(); };
   const fmethod = document.getElementById('f-method');
-  if (fmethod) fmethod.onchange = e => { state.method = e.target.value; syncAutoParams(); markDirty(); renderTabs(); };
+  if (fmethod) fmethod.onchange = e => { state.method = e.target.value; syncAutoParams(); markDirty(); renderPage(); };
   const fendpoint = document.getElementById('f-endpoint');
   if (fendpoint){
     fendpoint.oninput = e => {
@@ -975,93 +967,85 @@ function wireBody(){
       if (prev) prev.innerHTML = endpointPreview() || '&nbsp;';
       markDirty();
     };
-    fendpoint.onblur = () => { syncAutoParams(); renderTabs(); };
+    fendpoint.onblur = () => { syncAutoParams(); renderPage(); };
   }
   body.querySelectorAll('[data-bodymode]').forEach(el=>el.onclick=()=>{
     state.body.mode = el.dataset.bodymode;
     syncAutoParams();
     markDirty();
-    renderTabs();
+    renderPage();
   });
   const fbodyraw = document.getElementById('f-bodyraw');
   if (fbodyraw){
     fbodyraw.oninput = e => { state.body.raw = e.target.value; markDirty(); };
-    fbodyraw.onblur = () => { syncAutoParams(); renderTabs(); };
+    fbodyraw.onblur = () => { syncAutoParams(); renderPage(); };
   }
   const ftimeout = document.getElementById('f-timeout');
   if (ftimeout) ftimeout.oninput = e => { state.timeout = e.target.value; markDirty(); };
   const fretries = document.getElementById('f-retries');
   if (fretries) fretries.oninput = e => { state.retries = e.target.value; markDirty(); };
-  const fauthtype = document.getElementById('f-authtype');
-  if (fauthtype) fauthtype.onchange = e => { state.auth.type = e.target.value; markDirty(); renderTabs(); };
-  ['keyname','keyvalue','token','user','pass'].forEach(f=>{
-    const el = document.getElementById('auth-'+f);
-    if (el) el.oninput = e => { state.auth[f==='keyname'?'keyName':f==='keyvalue'?'keyValue':f] = e.target.value; markDirty(); };
+
+  // Test values: mutate + clear invalid marker only. No re-render (would lose focus mid-type)
+  // and no testResult clear — markDirty() from any real edit handles invalidation; the button
+  // recomputes fresh on click regardless.
+  body.querySelectorAll('[data-testval]').forEach(el=>el.addEventListener('input', ()=>{
+    state.testValues[el.dataset.testval] = el.value;
+    el.classList.remove('invalid');
+  }));
+  // One action: fire the test and, on 200, go live in the same step.
+  const runTestBtn = document.getElementById('btn-runtest');
+  if (runTestBtn) runTestBtn.onclick = () => {
+    let allFilled = true;
+    state.params.forEach(p=>{
+      const el = document.querySelector(`[data-testval="${p.id}"]`);
+      const val = (state.testValues[p.id]||'').trim();
+      if (!val){ allFilled = false; if (el) el.classList.add('invalid'); }
+    });
+    if (!allFilled) return;
+    populateDefaultMappings();
+    state.testResult = { ok:true, matchedOutcome: evaluateOutcomes() };
+    state.isLive = true;
+    renderPage();
+    showToast('200 OK — action is live');
+  };
+
+  body.querySelectorAll('[data-cyclevis]').forEach(el=>el.onclick=()=>{
+    const i = Number(el.dataset.cyclevis);
+    const order = ['public','hidden','secret'];
+    state.params[i].visibility = order[(order.indexOf(state.params[i].visibility)+1)%3];
+    markDirty();
+    renderPage();
   });
-
-  if (state.activeTab==='basic'){
-    body.querySelectorAll('[data-testval]').forEach(el=>el.addEventListener('input', ()=>{
-      state.testValues[el.dataset.testval] = el.value;
-      el.classList.remove('invalid');
-      state.testResult = null;
-    }));
-    const runTestBtn = document.getElementById('btn-runtest');
-    if (runTestBtn) runTestBtn.onclick = () => {
-      let allFilled = true;
-      state.params.forEach(p=>{
-        const el = document.querySelector(`[data-testval="${p.id}"]`);
-        const val = (state.testValues[p.id]||'').trim();
-        if (!val){ allFilled = false; if (el) el.classList.add('invalid'); }
-      });
-      if (!allFilled) return;
-      populateDefaultMappings();
-      state.testResult = { ok:true, matchedOutcome: evaluateOutcomes() };
-      renderTabs();
-    };
-    const setLiveBtn = document.getElementById('btn-setlive');
-    if (setLiveBtn) setLiveBtn.onclick = () => {
-      state.isLive = true;
-      renderTabs();
-      showToast('Successfully set live');
-    };
-  }
-
-  if (state.activeTab==='inputs'){
-    body.querySelectorAll('[data-cyclevis]').forEach(el=>el.onclick=()=>{
-      const i = Number(el.dataset.cyclevis);
-      const order = ['public','hidden','secret'];
-      state.params[i].visibility = order[(order.indexOf(state.params[i].visibility)+1)%3];
-      markDirty();
-      renderTabs();
-    });
-    body.querySelectorAll('[data-cycleloc]').forEach(el=>el.onclick=()=>{
-      const i = Number(el.dataset.cycleloc);
-      state.params[i].location = state.params[i].location==='url' ? 'body' : 'url';
-      markDirty();
-      renderTabs();
-    });
-    body.querySelectorAll('[data-remove-param]').forEach(el=>el.onclick=()=>{ state.params.splice(Number(el.dataset.removeParam),1); markDirty(); renderTabs(); });
-    body.querySelectorAll('[data-editkey]').forEach(el=>el.addEventListener('input', ()=>{ state.params[Number(el.dataset.editkey)].key = el.value; markDirty(); }));
-    body.querySelectorAll('[data-srcmode]').forEach(el=>el.onclick=()=>{
-      const [i, mode] = el.dataset.srcmode.split(':');
-      const p = state.params[Number(i)];
-      if (p.source===mode) return;
-      p.source = mode;
-      // A binding valid under the old source may be invalid under the new one (e.g. a derived
-      // datapoint can't be collected) — clear it and reopen the picker for a fresh pick.
-      p.slug = ''; p.pickerOpen = true; p.query = '';
-      markDirty();
-      renderTabs();
-    });
-    const addParam = document.getElementById('btn-add-param');
-    if (addParam) addParam.onclick = ()=>{
-      const loc = ['POST','PUT','PATCH'].includes(state.method) ? 'body' : 'url';
-      state.params.push({id:newParamId(), key:'', slug:'', visibility:'public', auto:false, location:loc, pickerOpen:true, query:'', source:'datapoint'});
-      markDirty();
-      renderTabs();
-    };
-    state.params.forEach((p,i)=>wireInputsRow(i));
-  }
+  body.querySelectorAll('[data-cycleloc]').forEach(el=>el.onclick=()=>{
+    const i = Number(el.dataset.cycleloc);
+    state.params[i].location = state.params[i].location==='url' ? 'body' : 'url';
+    markDirty();
+    renderPage();
+  });
+  body.querySelectorAll('[data-remove-param]').forEach(el=>el.onclick=()=>{ state.params.splice(Number(el.dataset.removeParam),1); markDirty(); renderPage(); });
+  body.querySelectorAll('[data-editkey]').forEach(el=>el.addEventListener('input', ()=>{ state.params[Number(el.dataset.editkey)].key = el.value; markDirty(); }));
+  body.querySelectorAll('[data-srcmode]').forEach(el=>el.onclick=()=>{
+    const [i, mode] = el.dataset.srcmode.split(':');
+    const p = state.params[Number(i)];
+    if (p.source===mode) return;
+    p.source = mode;
+    // A binding valid under the old source may be invalid under the new one (e.g. a derived
+    // datapoint can't be collected) — clear it and reopen the picker for a fresh pick.
+    p.slug = ''; p.pickerOpen = true; p.query = '';
+    markDirty();
+    renderPage();
+  });
+  const defaultLoc = () => ['POST','PUT','PATCH'].includes(state.method) ? 'body' : 'url';
+  const addRow = (source) => {
+    state.params.push({id:newParamId(), key:'', slug:'', visibility:'public', auto:false, location:defaultLoc(), pickerOpen:true, query:'', source});
+    markDirty();
+    renderPage();
+  };
+  const addBind = document.getElementById('btn-add-bind');
+  if (addBind) addBind.onclick = () => addRow('datapoint');
+  const addCollect = document.getElementById('btn-add-collect');
+  if (addCollect) addCollect.onclick = () => addRow('conversation');
+  state.params.forEach((p,i)=>wireInputsRow(i));
 
   body.querySelectorAll('[data-detect]').forEach(el=>el.addEventListener('change', ()=>{
     const key = el.dataset.detect;
@@ -1078,42 +1062,41 @@ function wireBody(){
       unregisterOutputDatapoint(state.outputMappings[idx]);
       state.outputMappings.splice(idx,1);
     }
-    markDirty();
-    renderTabs();
+    markConfigDirty();
+    renderPage();
   }));
   body.querySelectorAll('[data-typeoverride]').forEach(el=>el.addEventListener('change', ()=>{
     const m = state.outputMappings.find(x=>x.key===el.dataset.typeoverride);
     if (m) m.type = el.value;
-    markDirty();
-    renderTabs();
+    markConfigDirty();
+    renderPage();
   }));
   body.querySelectorAll('[data-varname]').forEach(el=>el.addEventListener('input', ()=>{
     const m = state.outputMappings.find(x=>x.key===el.dataset.varname);
     if (m) m.variable = el.value;
-    markDirty();
+    markConfigDirty();
   }));
 
-  body.querySelectorAll('[data-oname]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oname)].name = el.value; markDirty(); }));
-  body.querySelectorAll('[data-ofield]').forEach(el=>el.onchange=()=>{ state.outcomes[Number(el.dataset.ofield)].field = el.value; markDirty(); renderTabs(); });
+  body.querySelectorAll('[data-oname]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oname)].name = el.value; markConfigDirty(); }));
+  body.querySelectorAll('[data-ofield]').forEach(el=>el.onchange=()=>{ state.outcomes[Number(el.dataset.ofield)].field = el.value; markConfigDirty(); renderPage(); });
   body.querySelectorAll('[data-oop]').forEach(el=>el.onchange=()=>{
     const o = state.outcomes[Number(el.dataset.oop)];
     o.operator = el.value;
     if (UNARY_OPS.has(o.operator)) o.value = '';   // unary ops carry no literal
-    markDirty(); renderTabs();
+    markConfigDirty(); renderPage();
   });
-  body.querySelectorAll('[data-oval]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oval)].value = el.value; markDirty(); }));
-  body.querySelectorAll('[data-remove-outcome]').forEach(el=>el.onclick=()=>{ state.outcomes.splice(Number(el.dataset.removeOutcome),1); markDirty(); renderTabs(); });
+  body.querySelectorAll('[data-oval]').forEach(el=>el.addEventListener('input', ()=>{ state.outcomes[Number(el.dataset.oval)].value = el.value; markConfigDirty(); }));
+  body.querySelectorAll('[data-remove-outcome]').forEach(el=>el.onclick=()=>{ state.outcomes.splice(Number(el.dataset.removeOutcome),1); markConfigDirty(); renderPage(); });
   body.querySelectorAll('[data-togglecollapse]').forEach(el=>el.onclick=()=>{
     const i = Number(el.dataset.togglecollapse);
     state.outcomes[i].collapsed = !state.outcomes[i].collapsed;
-    renderTabs();
+    renderPage();
   });
   const addOutcome = document.getElementById('btn-add-outcome');
-  if (addOutcome) addOutcome.onclick = ()=>{ state.outcomes.push({name:'', field:'', operator:'equals', value:'', collapsed:false}); markDirty(); renderTabs(); };
+  if (addOutcome) addOutcome.onclick = ()=>{ state.outcomes.push({name:'', field:'', operator:'equals', value:'', collapsed:false}); markDirty(); renderPage(); };
 }
 
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ state.activeTab = t.dataset.tab; renderTabs(); });
-renderTabs();
+renderPage();
 </script>
 </body>
 </html>
