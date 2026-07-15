@@ -61,6 +61,10 @@ export function defaultConfigFor(type) {
       return {
         mode: DO_MODE.ACTION,
         actions: [{ name: 'new_action', params: [{ key: 'param', value: 'value' }] }],
+        // Optional — only nodes whose result needs downstream branching
+        // declare outcomes. `mockOutcome` picks which one fires in the trace.
+        outcomes: [],
+        mockOutcome: '',
         subprocedure: { name: 'sub_procedure', inputBindings: [], outputBindings: [] },
         escalate: { note: 'Hand off to a human agent.' },
         finish: { note: 'Exit the flow.' },

@@ -17,7 +17,7 @@ const FORM_BY_TYPE = {
   [PRIMITIVE.GOTO]: GotoConfig,
 }
 
-export default function ConfigPanel({ node, nodes, onUpdateLabel, onUpdateConfig, onDelete, graphOps }) {
+export default function ConfigPanel({ node, nodes, edges, onUpdateLabel, onUpdateConfig, onDelete, graphOps }) {
   if (!node) {
     return (
       <aside className="side-panel">
@@ -60,7 +60,7 @@ export default function ConfigPanel({ node, nodes, onUpdateLabel, onUpdateConfig
       </div>
 
       <div className="side-panel__body">
-        <Form node={node} nodes={nodes} config={config} onUpdateConfig={onUpdateConfig} graphOps={graphOps} />
+        <Form node={node} nodes={nodes} edges={edges} config={config} onUpdateConfig={onUpdateConfig} graphOps={graphOps} />
       </div>
     </aside>
   )

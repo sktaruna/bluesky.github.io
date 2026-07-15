@@ -24,10 +24,13 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL. The canvas loads pre-wired with a return-eligibility
+Open the printed local URL. The canvas loads pre-wired with a **Return Eligibility**
 example that exercises all 6 primitives, a bundled multi-action `Do` node, a
 sub-procedure call with input/output bindings, a two-way branch, and a `Go To`
-retry loop.
+retry loop. Use the tab switcher in the top bar to swap to **Reschedule Delivery**,
+a larger (~28-node) example imported from a richer step-vocabulary flow (see
+`BUILD_PROMPT_2_RESCHEDULE_FLOW.md`) — both examples are independently editable,
+runnable, and traceable, and switching between them preserves each one's state.
 
 ## Building
 
@@ -85,7 +88,9 @@ framework, and real backend wiring are all out of scope for this prototype — s
 ```
 src/
   constants/primitives.js   Locked primitive definitions, defaults, LLM-invoked flags
-  graph/initialGraph.js     The pre-loaded return-eligibility example
+  graph/initialGraph.js     The pre-loaded Return Eligibility example
+  graph/rescheduleGraph.js  The pre-loaded Reschedule Delivery example
+  graph/examples.js         Registry of switchable example flows
   graph/graphOps.js         Pure helpers for adding/removing nodes, branches, edges
   trace/traceEngine.js      Trace stepping logic: outcome resolution, mock effects
   utils/condition.js        Minimal safe evaluator for branch condition strings

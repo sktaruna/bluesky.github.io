@@ -135,6 +135,17 @@
   font-family: var(--font-mono);
 }
 
+.branch-config__source-note {
+  color: var(--accent-det);
+  background: var(--accent-det-bg);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  margin: -3px 0 2px;
+}
+.branch-config__source-note strong {
+  color: var(--text-primary);
+}
+
 .segmented {
   display: flex;
   border-radius: var(--radius-sm);

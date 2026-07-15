@@ -60,36 +60,9 @@ export function buildInitialGraph() {
       },
     },
     {
-      id: 'do_lookup',
-      type: 'capNode',
-      position: { x: 1000, y: 160 },
-      data: {
-        primitive: PRIMITIVE.DO,
-        label: 'Look up order & window',
-        config: {
-          mode: DO_MODE.ACTION,
-          actions: [
-            {
-              name: 'lookup_order',
-              params: [{ key: 'order_number', value: '{{order_number}}' }],
-              mockOutputs: [{ datapoint: 'order_id', value: 'ORD-58213-ID' }],
-            },
-            {
-              name: 'check_return_window',
-              params: [{ key: 'order_id', value: '{{order_id}}' }],
-              mockOutputs: [{ datapoint: 'returnable', value: 'true' }],
-            },
-          ],
-          subprocedure: { name: '', inputBindings: [], outputBindings: [] },
-          escalate: { note: '' },
-          finish: { note: '' },
-        },
-      },
-    },
-    {
       id: 'do_verify',
       type: 'capNode',
-      position: { x: 1330, y: 160 },
+      position: { x: 1000, y: 160 },
       data: {
         primitive: PRIMITIVE.DO,
         label: 'Verify identity',
@@ -110,6 +83,37 @@ export function buildInitialGraph() {
       },
     },
     {
+      id: 'do_lookup',
+      type: 'capNode',
+      position: { x: 1330, y: 160 },
+      data: {
+        primitive: PRIMITIVE.DO,
+        label: 'Look up order & window',
+        config: {
+          mode: DO_MODE.ACTION,
+          actions: [
+            {
+              name: 'lookup_order',
+              params: [{ key: 'order_number', value: '{{order_number}}' }],
+              mockOutputs: [{ datapoint: 'order_id', value: 'ORD-58213-ID' }],
+            },
+            {
+              name: 'check_return_window',
+              params: [{ key: 'order_id', value: '{{order_id}}' }],
+              mockOutputs: [],
+            },
+          ],
+          // Declared outcomes — the downstream "Returnable?" branch picks
+          // from this list instead of a free-text condition.
+          outcomes: ['returnable', 'not returnable'],
+          mockOutcome: 'returnable',
+          subprocedure: { name: '', inputBindings: [], outputBindings: [] },
+          escalate: { note: '' },
+          finish: { note: '' },
+        },
+      },
+    },
+    {
       id: 'returnable_check',
       type: 'capNode',
       position: { x: 1660, y: 160 },
@@ -118,7 +122,7 @@ export function buildInitialGraph() {
         label: 'Returnable?',
         config: {},
         branches: [
-          { id: 'returnable_check__true', condition: 'returnable == true', isDefault: false },
+          { id: 'returnable_check__true', condition: 'look_up_order_window_outcome == "returnable"', isDefault: false },
           { id: 'returnable_check__false', condition: 'else', isDefault: true },
         ],
       },
@@ -173,11 +177,11 @@ export function buildInitialGraph() {
   const edges = [
     edge('ask_order', 'set_channel'),
     edge('set_channel', 'valid_check'),
-    edge('valid_check', 'do_lookup', 'valid_check__true'),
+    edge('valid_check', 'do_verify', 'valid_check__true'),
     edge('valid_check', 'goto_retry', 'valid_check__false'),
     edge('goto_retry', 'ask_order', 'out', true),
-    edge('do_lookup', 'do_verify'),
-    edge('do_verify', 'returnable_check'),
+    edge('do_verify', 'do_lookup'),
+    edge('do_lookup', 'returnable_check'),
     edge('returnable_check', 'say_eligible', 'returnable_check__true'),
     edge('returnable_check', 'do_escalate', 'returnable_check__false'),
     edge('say_eligible', 'do_finish'),

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ReactFlow, Background, BackgroundVariant, applyNodeChanges, applyEdgeChanges, reconnectEdge } from '@xyflow/react'
 import { PRIMITIVE, PRIMITIVE_META } from './constants/primitives'
-import { buildInitialGraph } from './graph/initialGraph'
+import { EXAMPLES, DEFAULT_EXAMPLE_KEY } from './graph/examples'
 import {
   createNode,
   removeNode,
@@ -27,15 +27,41 @@ const edgeTypes = { capEdge: CapEdge }
 
 const initialTrace = { status: 'idle', activeNodeId: null, prevActiveNodeId: null, datapoints: {}, askDraft: '', history: [] }
 
-export default function App() {
-  const [graph, setGraph] = useState(() => buildInitialGraph())
-  const { nodes, edges } = graph
-  const [selectedNodeId, setSelectedNodeId] = useState(null)
-  const [trace, setTrace] = useState(initialTrace)
+function buildInitialGraphsByExample() {
+  return Object.fromEntries(EXAMPLES.map((ex) => [ex.key, ex.build()]))
+}
+function buildInitialMapByExample(value) {
+  return Object.fromEntries(EXAMPLES.map((ex) => [ex.key, value]))
+}
 
+export default function App() {
+  const [exampleKey, setExampleKey] = useState(DEFAULT_EXAMPLE_KEY)
+  const [graphsByExample, setGraphsByExample] = useState(buildInitialGraphsByExample)
+  const [selectionByExample, setSelectionByExample] = useState(() => buildInitialMapByExample(null))
+  const [traceByExample, setTraceByExample] = useState(() => buildInitialMapByExample(initialTrace))
+
+  const graph = graphsByExample[exampleKey]
+  const { nodes, edges } = graph
+  const selectedNodeId = selectionByExample[exampleKey]
+  const trace = traceByExample[exampleKey]
+
+  const setSelectedNodeId = useCallback(
+    (id) => setSelectionByExample((s) => ({ ...s, [exampleKey]: id })),
+    [exampleKey],
+  )
+  const setTrace = useCallback(
+    (updater) =>
+      setTraceByExample((t) => ({ ...t, [exampleKey]: typeof updater === 'function' ? updater(t[exampleKey]) : updater })),
+    [exampleKey],
+  )
+  const setGraph = useCallback(
+    (updater) =>
+      setGraphsByExample((g) => ({ ...g, [exampleKey]: typeof updater === 'function' ? updater(g[exampleKey]) : updater })),
+    [exampleKey],
+  )
   const setNodes = useCallback((updater) => {
     setGraph((g) => ({ ...g, nodes: typeof updater === 'function' ? updater(g.nodes) : updater }))
-  }, [])
+  }, [setGraph])
 
   // ---------- Canvas editing ----------
 
@@ -57,12 +83,12 @@ export default function App() {
       })
       if (removedIds.length && removedIds.includes(selectedNodeId)) setSelectedNodeId(null)
     },
-    [selectedNodeId],
+    [selectedNodeId, setGraph, setSelectedNodeId],
   )
 
   const onEdgesChange = useCallback((changes) => {
     setGraph((g) => ({ ...g, edges: applyEdgeChanges(changes, g.edges) }))
-  }, [])
+  }, [setGraph])
 
   const onConnect = useCallback((connection) => {
     setGraph((g) => {
@@ -73,7 +99,7 @@ export default function App() {
       }
       return { nodes: g.nodes, edges: addOrReplaceEdge(g.edges, connection) }
     })
-  }, [])
+  }, [setGraph])
 
   const onReconnect = useCallback((oldEdge, newConnection) => {
     setGraph((g) => {
@@ -85,10 +111,10 @@ export default function App() {
       }
       return { nodes: g.nodes, edges: reconnectEdge(oldEdge, newConnection, g.edges) }
     })
-  }, [])
+  }, [setGraph])
 
-  const onNodeClick = useCallback((_evt, node) => setSelectedNodeId(node.id), [])
-  const onPaneClick = useCallback(() => setSelectedNodeId(null), [])
+  const onNodeClick = useCallback((_evt, node) => setSelectedNodeId(node.id), [setSelectedNodeId])
+  const onPaneClick = useCallback(() => setSelectedNodeId(null), [setSelectedNodeId])
 
   const handleAddNode = useCallback((primitive) => {
     setGraph((g) => {
@@ -98,7 +124,7 @@ export default function App() {
       setSelectedNodeId(node.id)
       return { nodes: [...g.nodes, node], edges: g.edges }
     })
-  }, [])
+  }, [setGraph, setSelectedNodeId])
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null
 
@@ -119,7 +145,7 @@ export default function App() {
           edges: syncGotoEdge(g.nodes, g.edges, id, targetId),
         })),
     }
-  }, [selectedNode, setNodes])
+  }, [selectedNode, setNodes, setGraph])
 
   // ---------- Trace execution ----------
 
@@ -154,9 +180,9 @@ export default function App() {
       askDraft,
       history: [describeNode(entryNode)],
     })
-  }, [nodes])
+  }, [nodes, setTrace])
 
-  const handleReset = useCallback(() => setTrace(initialTrace), [])
+  const handleReset = useCallback(() => setTrace(initialTrace), [setTrace])
 
   const handleStep = useCallback(() => {
     setTrace((t) => {
@@ -188,20 +214,20 @@ export default function App() {
         history: [...t.history, describeNode(nextNode)],
       }
     })
-  }, [nodes, edges])
+  }, [nodes, edges, setTrace])
 
-  const handleAskDraftChange = useCallback((val) => setTrace((t) => ({ ...t, askDraft: val })), [])
+  const handleAskDraftChange = useCallback((val) => setTrace((t) => ({ ...t, askDraft: val })), [setTrace])
 
   const handleEditDatapoint = useCallback(
     (key, value) => setTrace((t) => ({ ...t, datapoints: { ...t.datapoints, [key]: value } })),
-    [],
+    [setTrace],
   )
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedNodeId) return
     setGraph((g) => removeNode(g.nodes, g.edges, selectedNodeId))
     setSelectedNodeId(null)
-  }, [selectedNodeId])
+  }, [selectedNodeId, setGraph, setSelectedNodeId])
 
   // ---------- Render-time enrichment ----------
 
@@ -244,11 +270,19 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <TopBar status={trace.status} onStart={handleStart} onStep={handleStep} onReset={handleReset} />
+      <TopBar
+        status={trace.status}
+        onStart={handleStart}
+        onStep={handleStep}
+        onReset={handleReset}
+        activeExampleKey={exampleKey}
+        onExampleChange={setExampleKey}
+      />
       <div className="app-body">
         <Palette onAdd={handleAddNode} />
         <div className="canvas-wrap">
           <ReactFlow
+            key={exampleKey}
             nodes={renderedNodes}
             edges={renderedEdges}
             nodeTypes={nodeTypes}
@@ -272,6 +306,7 @@ export default function App() {
           <ConfigPanel
             node={selectedNode}
             nodes={nodes}
+            edges={edges}
             onUpdateLabel={(label) => setNodes((nds) => updateNodeData(nds, selectedNodeId, { label }))}
             onUpdateConfig={(patch) => setNodes((nds) => updateNodeConfig(nds, selectedNodeId, patch))}
             onDelete={handleDeleteSelected}

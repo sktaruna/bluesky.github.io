@@ -1,0 +1,31 @@
+.example-switcher {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.example-switcher__tab {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.example-switcher__tab:hover {
+  color: var(--text-secondary);
+}
+
+.example-switcher__tab--active {
+  background: var(--accent-selected);
+  color: #fff;
+}

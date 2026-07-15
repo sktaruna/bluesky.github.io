@@ -1,4 +1,5 @@
 import { DO_MODE } from '../../constants/primitives'
+import { outcomeDatapointName } from '../../utils/slug'
 import { PlusIcon, TrashIcon } from '../icons'
 
 const MODE_LABEL = {
@@ -8,7 +9,7 @@ const MODE_LABEL = {
   [DO_MODE.FINISH]: 'Finish',
 }
 
-export default function DoConfig({ config, onUpdateConfig }) {
+export default function DoConfig({ node, config, onUpdateConfig }) {
   return (
     <>
       <div className="field-group">
@@ -26,7 +27,7 @@ export default function DoConfig({ config, onUpdateConfig }) {
         </div>
       </div>
 
-      {config.mode === DO_MODE.ACTION && <ActionMode config={config} onUpdateConfig={onUpdateConfig} />}
+      {config.mode === DO_MODE.ACTION && <ActionMode node={node} config={config} onUpdateConfig={onUpdateConfig} />}
       {config.mode === DO_MODE.SUBPROCEDURE && <SubprocedureMode config={config} onUpdateConfig={onUpdateConfig} />}
       {config.mode === DO_MODE.ESCALATE && (
         <div className="field-group">
@@ -52,7 +53,7 @@ export default function DoConfig({ config, onUpdateConfig }) {
   )
 }
 
-function ActionMode({ config, onUpdateConfig }) {
+function ActionMode({ node, config, onUpdateConfig }) {
   const actions = config.actions || []
 
   function setActions(next) {
@@ -115,6 +116,72 @@ function ActionMode({ config, onUpdateConfig }) {
       <button className="add-row-btn" onClick={addAction}>
         <PlusIcon /> Add action to bundle
       </button>
+
+      <OutcomesEditor node={node} config={config} onUpdateConfig={onUpdateConfig} />
+    </div>
+  )
+}
+
+function OutcomesEditor({ node, config, onUpdateConfig }) {
+  const outcomes = config.outcomes || []
+
+  function setOutcomes(next) {
+    const patch = { outcomes: next }
+    if (!next.includes(config.mockOutcome)) patch.mockOutcome = next[0] || ''
+    onUpdateConfig(patch)
+  }
+  function updateOutcome(i, value) {
+    setOutcomes(outcomes.map((o, idx) => (idx === i ? value : o)))
+  }
+  function addOutcome() {
+    setOutcomes([...outcomes, `outcome_${outcomes.length + 1}`])
+  }
+  function removeOutcome(i) {
+    setOutcomes(outcomes.filter((_, idx) => idx !== i))
+  }
+
+  return (
+    <div className="field-group outcomes-editor">
+      <label className="field-label">
+        Outcomes <span className="field-label__hint">(optional — only needed if a downstream If/Branch reads this node's result)</span>
+      </label>
+      <p className="field-hint">
+        Named outcomes this action can produce. A downstream If/Branch node can pick from this list instead of
+        typing a free-text condition
+        {node && outcomes.length > 0 && (
+          <>
+            {' '}
+            — written to <code className="cap-node__mono cap-node__mono--small">{outcomeDatapointName(node.data.label)}</code>.
+          </>
+        )}
+      </p>
+      <div className="branch-list">
+        {outcomes.map((o, i) => (
+          <div className="branch-row" key={i}>
+            <span className="branch-row__dot" />
+            <input className="field-mono" value={o} onChange={(e) => updateOutcome(i, e.target.value)} placeholder="outcome label" />
+            <button className="branch-row__icon-btn" onClick={() => removeOutcome(i)} title="Remove outcome">
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button className="add-row-btn add-row-btn--small" onClick={addOutcome}>
+        <PlusIcon /> Add outcome
+      </button>
+
+      {outcomes.length > 0 && (
+        <div className="field-group">
+          <label className="field-label">Mock outcome for trace</label>
+          <select value={config.mockOutcome || outcomes[0]} onChange={(e) => onUpdateConfig({ mockOutcome: e.target.value })}>
+            {outcomes.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   )
 }

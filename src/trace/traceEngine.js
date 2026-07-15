@@ -1,5 +1,6 @@
 import { PRIMITIVE, DO_MODE, SET_MODE } from '../constants/primitives'
 import { evaluateCondition } from '../utils/condition'
+import { outcomeDatapointName } from '../utils/slug'
 
 export function findEntryNodeId(nodes) {
   const explicit = nodes.find((n) => n.data.isEntry)
@@ -17,6 +18,10 @@ function outEdge(edges, nodeId, handle = 'out') {
 export function mockAskPlaceholder(datapoint) {
   const known = {
     order_number: 'ORD-58213',
+    order_id: 'ORD-58213',
+    request_type_choice: 'Reschedule delivery date',
+    chosen_delivery_slot: '2026-07-14',
+    confirm_reschedule: 'confirmed',
   }
   return known[datapoint] || `sample_${datapoint}`
 }
@@ -36,6 +41,10 @@ export function applyDoEffects(node, datapoints) {
         if (!out.datapoint) continue
         next = { ...next, [out.datapoint]: coerceMock(out.value) }
       }
+    }
+    if (config.outcomes?.length) {
+      const picked = config.mockOutcome || config.outcomes[0]
+      next = { ...next, [outcomeDatapointName(node.data.label)]: picked }
     }
     return next
   }
