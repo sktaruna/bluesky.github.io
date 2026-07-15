@@ -1,0 +1,212 @@
+.cap-node {
+  position: relative;
+  width: 236px;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  border: 1.5px solid var(--accent-det-border);
+  box-shadow: var(--shadow-node);
+  font-size: 12.5px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  cursor: grab;
+}
+
+.cap-node--llm {
+  border-color: var(--accent-llm-border);
+}
+
+.cap-node--selected {
+  border-color: var(--accent-selected);
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.28), var(--shadow-node);
+}
+
+.cap-node--active {
+  border-color: var(--accent-active);
+  box-shadow: 0 0 0 4px rgba(52, 214, 214, 0.28), 0 0 24px rgba(52, 214, 214, 0.35);
+  animation: cap-pulse 1.6s ease-in-out infinite;
+}
+
+.cap-node--traced:not(.cap-node--active) {
+  opacity: 0.62;
+}
+
+@keyframes cap-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(52, 214, 214, 0.28), 0 0 24px rgba(52, 214, 214, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(52, 214, 214, 0.4), 0 0 32px rgba(52, 214, 214, 0.5);
+  }
+}
+
+.cap-node__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 10px 6px;
+}
+
+.cap-node--llm .cap-node__header {
+  background: var(--accent-llm-bg);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.cap-node__icon {
+  display: flex;
+  color: var(--accent-det);
+}
+.cap-node--llm .cap-node__icon {
+  color: var(--accent-llm-strong);
+}
+
+.cap-node__label {
+  flex: 1;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cap-node__sparkle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-llm);
+  color: #16112b;
+  flex-shrink: 0;
+}
+
+.cap-node__type-strip {
+  padding: 0 10px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-det);
+}
+.cap-node--llm .cap-node__type-strip {
+  color: var(--accent-llm-strong);
+}
+
+.cap-node__body {
+  padding: 2px 10px 12px;
+  min-height: 20px;
+  color: var(--text-secondary);
+}
+
+.cap-node__quote {
+  margin: 0 0 6px;
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.cap-node__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cap-node__mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.cap-node__mono--small {
+  font-size: 10.5px;
+  padding: 1px 5px;
+}
+
+.cap-node__tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.cap-node__tag--det {
+  color: var(--accent-det);
+  font-weight: 600;
+}
+.cap-node__tag--danger {
+  color: var(--danger);
+  font-weight: 700;
+  background: var(--danger-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.cap-node__tag--success {
+  color: var(--success);
+  font-weight: 700;
+  background: var(--success-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.cap-node__badge-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-det);
+  background: var(--accent-det-bg);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.cap-node__branches {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.cap-node__branch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cap-node__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-det);
+  flex-shrink: 0;
+}
+.cap-node__dot--default {
+  background: var(--text-muted);
+}
+
+.cap-node__entry-flag {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  background: var(--accent-active);
+  color: #06231f;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.cap-handle {
+  width: 9px !important;
+  height: 9px !important;
+  background: var(--bg-panel) !important;
+  border: 2px solid var(--accent-det) !important;
+}
+.cap-node--llm .cap-handle {
+  border-color: var(--accent-llm) !important;
+}
+.cap-handle--branch {
+  border-color: var(--accent-det) !important;
+}
+.cap-handle--default {
+  border-style: dashed !important;
+}

@@ -1,0 +1,50 @@
+.cap-edge {
+  stroke: var(--border-strong);
+  stroke-width: 1.75;
+}
+
+.cap-edge--default {
+  stroke-dasharray: 4 3;
+  stroke: var(--text-muted);
+}
+
+.cap-edge--goto {
+  stroke-dasharray: 2 4;
+  stroke: var(--warn);
+}
+
+.cap-edge--active {
+  stroke: var(--accent-active);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(52, 214, 214, 0.65));
+}
+
+.cap-edge__label {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cap-edge__label--default {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cap-edge__label--goto {
+  color: var(--warn);
+  border-color: rgba(245, 181, 86, 0.5);
+}
+
+.cap-edge__label--active {
+  color: #06231f;
+  background: var(--accent-active);
+  border-color: var(--accent-active);
+  font-weight: 700;
+}
