@@ -1,15 +1,20 @@
 import { useState } from 'react'
-import { PRIMITIVE, PRIMITIVE_META, DO_MODE } from '../../constants/primitives'
-import { PRIMITIVE_ICON } from '../icons'
+import { PRIMITIVES } from '../../primitives/registry'
 import './tracePanel.css'
 
-export default function TracePanel({ status, activeNode, datapoints, history, askDraft, onAskDraftChange, onEditDatapoint }) {
-  const Icon = activeNode ? PRIMITIVE_ICON[activeNode.data.primitive] : null
+export default function TracePanel({ status, activeNode, datapoints, history, draftValue, attemptCounts, onDraftChange, onEditDatapoint }) {
+  const spec = activeNode ? PRIMITIVES[activeNode.data.type] : null
+  const Icon = spec?.canvas.icon
+
+  const flowNode = activeNode ? { id: activeNode.id, type: activeNode.data.type, config: activeNode.data.config } : null
+  const attempt = activeNode ? attemptCounts?.[activeNode.id] : 0
+  const trace = { datapoints, draftValue }
+  const helpers = { onDraftChange }
 
   return (
     <aside className="side-panel">
       <div className="trace-panel__status-block">
-        <StatusBanner status={status} activeNode={activeNode} />
+        <StatusBanner status={status} />
       </div>
 
       {activeNode && (
@@ -18,30 +23,17 @@ export default function TracePanel({ status, activeNode, datapoints, history, as
             <span className="trace-panel__active-icon">
               <Icon />
             </span>
-            {PRIMITIVE_META[activeNode.data.primitive].label} — {activeNode.data.label}
+            {spec.meta.label} — {activeNode.data.label}
           </div>
 
-          {activeNode.data.primitive === PRIMITIVE.ASK && status === 'running' && (
-            <div className="trace-panel__ask">
-              <div className="trace-panel__ask-prompt">“{activeNode.data.config.prompt}”</div>
-              <label className="field-label">Mock user reply</label>
-              <input value={askDraft} onChange={(e) => onAskDraftChange(e.target.value)} autoFocus />
-              <p className="field-hint">
-                Written to <code>{activeNode.data.config.datapoint}</code> when you step forward.
-              </p>
+          {attempt > 0 && activeNode.data.config.retry && (
+            <div className="trace-panel__branch-note">
+              Attempt {attempt} of {activeNode.data.config.retry.maxAttempts} — will jump to{' '}
+              <code>{activeNode.data.config.retry.onExceeded || '(none — fails open)'}</code> if exceeded.
             </div>
           )}
 
-          {activeNode.data.primitive === PRIMITIVE.BRANCH && (
-            <div className="trace-panel__branch-note">Evaluating conditions against current datapoints…</div>
-          )}
-
-          {activeNode.data.primitive === PRIMITIVE.DO && activeNode.data.config.mode === DO_MODE.ESCALATE && (
-            <div className="trace-panel__end-note trace-panel__end-note--warn">{activeNode.data.config.escalate.note}</div>
-          )}
-          {activeNode.data.primitive === PRIMITIVE.DO && activeNode.data.config.mode === DO_MODE.FINISH && (
-            <div className="trace-panel__end-note trace-panel__end-note--success">{activeNode.data.config.finish.note}</div>
-          )}
+          {status === 'running' && spec.canvas.traceDetail?.(flowNode, trace, helpers)}
         </div>
       )}
 
@@ -72,7 +64,7 @@ export default function TracePanel({ status, activeNode, datapoints, history, as
   )
 }
 
-function StatusBanner({ status, activeNode }) {
+function StatusBanner({ status }) {
   if (status === 'idle') {
     return (
       <div className="trace-banner trace-banner--idle">
@@ -121,7 +113,7 @@ function DatapointRow({ k, v, editable, onEdit }) {
       title={editable ? 'Click to edit (e.g. to test the other branch)' : ''}
     >
       <code className="datapoint-row__key">{k}</code>
-      <span className="datapoint-row__value">{String(v)}</span>
+      <span className="datapoint-row__value">{Array.isArray(v) ? v.join(', ') : String(v)}</span>
     </div>
   )
 }

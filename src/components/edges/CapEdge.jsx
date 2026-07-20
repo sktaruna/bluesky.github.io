@@ -16,7 +16,7 @@ export default function CapEdge({ sourceX, sourceY, targetX, targetY, sourcePosi
     curvature: 0.32,
   })
 
-  const isGoto = !!data?.isGoto
+  const isGoto = !!data?.isInlineTarget
   const isActive = !!data?.isActive
   const markerKey = isActive ? 'active' : hovered ? 'hover' : isGoto ? 'goto' : 'default'
 

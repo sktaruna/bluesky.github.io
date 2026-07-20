@@ -1,9 +1,7 @@
-import { buildInitialGraph } from './initialGraph'
 import { buildRescheduleGraph } from './rescheduleGraph'
 
-export const EXAMPLES = [
-  { key: 'returnEligibility', label: 'Return Eligibility', build: buildInitialGraph },
-  { key: 'rescheduleDelivery', label: 'Reschedule Delivery', build: buildRescheduleGraph },
-]
+// Return Eligibility was retired — Reschedule Delivery (now shared with the
+// chat demo via flows/reschedule.js) is the sole remaining example.
+export const EXAMPLES = [{ key: 'rescheduleDelivery', label: 'Reschedule Delivery', build: buildRescheduleGraph }]
 
 export const DEFAULT_EXAMPLE_KEY = EXAMPLES[0].key

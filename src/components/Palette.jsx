@@ -1,5 +1,4 @@
-import { PALETTE_ORDER, PRIMITIVE_META, IS_LLM_INVOKED } from '../constants/primitives'
-import { PRIMITIVE_ICON } from './icons'
+import { PRIMITIVES, PRIMITIVE_ORDER } from '../primitives/registry'
 import './palette.css'
 
 export default function Palette({ onAdd }) {
@@ -7,20 +6,21 @@ export default function Palette({ onAdd }) {
     <aside className="palette">
       <div className="palette__heading">Primitives</div>
       <div className="palette__list">
-        {PALETTE_ORDER.map((type) => {
-          const Icon = PRIMITIVE_ICON[type]
-          const isLlm = IS_LLM_INVOKED[type]
+        {PRIMITIVE_ORDER.map((type) => {
+          const spec = PRIMITIVES[type]
+          const Icon = spec.canvas.icon
+          const isLlm = spec.canvas.llmInvoked
           return (
             <button
               key={type}
               className={`palette__item ${isLlm ? 'palette__item--llm' : 'palette__item--det'}`}
               onClick={() => onAdd(type)}
-              title={PRIMITIVE_META[type].description}
+              title={spec.meta.description}
             >
               <span className="palette__icon">
                 <Icon />
               </span>
-              <span className="palette__label">{PRIMITIVE_META[type].label}</span>
+              <span className="palette__label">{spec.meta.label}</span>
             </button>
           )
         })}

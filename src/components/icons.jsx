@@ -1,44 +1,47 @@
 // Small inline glyphs — no icon library dependency.
 const common = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none' }
 
-export function SayIcon(props) {
+export function GotoIcon(props) {
   return (
     <svg {...common} {...props}>
       <path
-        d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4.4 3.3A.5.5 0 0 1 4 19v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-export function AskIcon(props) {
-  return (
-    <svg {...common} {...props}>
-      <path
-        d="M9 9.5a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.1-1.5 2.1"
+        d="M6 8h9a4 4 0 0 1 0 8h-3"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
+        fill="none"
       />
-      <circle cx="12" cy="18" r="1.1" fill="currentColor" />
+      <path d="M14.5 13.5 12.5 16l2 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   )
 }
 
-export function SetIcon(props) {
+// --- new 10-type registry icons ---
+
+export function CollectIcon(props) {
   return (
     <svg {...common} {...props}>
-      <path d="M5 9h14M5 15h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="16.5" cy="9" r="1.4" fill="currentColor" />
-      <circle cx="7.5" cy="15" r="1.4" fill="currentColor" />
+      <path
+        d="M4 12h4l1.5 3h5L16 12h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M6 12 7.2 6.4A1.5 1.5 0 0 1 8.66 5.2h6.68a1.5 1.5 0 0 1 1.46 1.2L18 12"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <rect x="4" y="12" width="16" height="6.5" rx="1.4" stroke="currentColor" strokeWidth="1.6" fill="none" />
     </svg>
   )
 }
 
-export function DoIcon(props) {
+export function ActionIcon(props) {
   return (
     <svg {...common} {...props}>
       <path
@@ -51,7 +54,7 @@ export function DoIcon(props) {
   )
 }
 
-export function BranchIcon(props) {
+export function ChoiceIcon(props) {
   return (
     <svg {...common} {...props}>
       <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="1.6" />
@@ -62,17 +65,59 @@ export function BranchIcon(props) {
   )
 }
 
-export function GotoIcon(props) {
+export function ConfirmIcon(props) {
   return (
     <svg {...common} {...props}>
-      <path
-        d="M6 8h9a4 4 0 0 1 0 8h-3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path d="M14.5 13.5 12.5 16l2 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <path d="M8 12.5l2.6 2.6L16 9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  )
+}
+
+export function GuideIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <path d="M15 9l-2 5-4.5 2 2-5L15 9Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" fill="none" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function InvestigateIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="10.5" cy="10.5" r="5.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <path d="M18.5 18.5 15 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function IfIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M12 5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 10 6 15v4M12 10l6 5v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="12" cy="8.5" r="1.3" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function EscalateIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <path d="M12 18V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7 10.5 12 5.5l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M5.5 18.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function DoneIcon(props) {
+  return (
+    <svg {...common} {...props}>
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.6" fill="none" />
+      <path d="M8 12.3l2.6 2.6L16 9.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   )
 }
@@ -111,10 +156,14 @@ export function PlusIcon(props) {
 }
 
 export const PRIMITIVE_ICON = {
-  say: SayIcon,
-  ask: AskIcon,
-  set: SetIcon,
-  do: DoIcon,
-  branch: BranchIcon,
+  collect: CollectIcon,
+  action: ActionIcon,
+  choice: ChoiceIcon,
+  confirm: ConfirmIcon,
+  guide: GuideIcon,
+  investigate: InvestigateIcon,
+  if: IfIcon,
+  escalate: EscalateIcon,
+  done: DoneIcon,
   goto: GotoIcon,
 }

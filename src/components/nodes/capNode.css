@@ -197,6 +197,79 @@
   border-radius: 999px;
 }
 
+.cap-node__routes-in {
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  max-width: 65%;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cap-node__routes-out {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 10px 10px;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.cap-node__route-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  overflow: hidden;
+}
+
+.cap-node__route-name {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cap-node__route-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.cap-node__route-target {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cap-node__route-target--unset {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cap-node__handle-label {
+  position: absolute;
+  right: 16px;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  padding: 0 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .cap-handle {
   width: 9px !important;
   height: 9px !important;

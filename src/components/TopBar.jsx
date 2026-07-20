@@ -1,4 +1,3 @@
-import ExampleSwitcher from './ExampleSwitcher'
 import './topBar.css'
 
 const STATUS_LABEL = {
@@ -8,7 +7,7 @@ const STATUS_LABEL = {
   escalated: 'Escalated',
 }
 
-export default function TopBar({ status, onStart, onStep, onReset, activeExampleKey, onExampleChange, viewMode, onViewModeChange }) {
+export default function TopBar({ status, onStart, onStep, onReset, viewMode, onViewModeChange }) {
   const running = status !== 'idle'
   return (
     <header className="top-bar">
@@ -16,7 +15,7 @@ export default function TopBar({ status, onStart, onStep, onReset, activeExample
         <span className="top-bar__mark" />
         <div>
           <div className="top-bar__title">Capability Graph Editor</div>
-          <div className="top-bar__subtitle">6-primitive deterministic interpreter — prototype</div>
+          <div className="top-bar__subtitle">10-primitive deterministic interpreter — prototype</div>
         </div>
       </div>
 
@@ -34,8 +33,6 @@ export default function TopBar({ status, onStart, onStep, onReset, activeExample
           Agent Behavior Demo
         </button>
       </div>
-
-      {viewMode === 'graph' && <ExampleSwitcher activeKey={activeExampleKey} onChange={onExampleChange} />}
 
       {viewMode === 'graph' && <div className="top-bar__controls">
         <span className={`top-bar__status top-bar__status--${status}`}>

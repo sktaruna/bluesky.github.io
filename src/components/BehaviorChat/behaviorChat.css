@@ -311,6 +311,18 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+.bp-step-tracker--list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+.bp-step-tracker__item {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
 
 /* ---- choice / confirm controls ---- */
 

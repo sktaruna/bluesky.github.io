@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBehaviorEngine } from '../../behaviors/engine'
-import { RESCHEDULE_FLOW } from '../../behaviors/flow'
+import { RESCHEDULE_FLOW } from '../../flows/reschedule'
 import {
   StatusBadge,
   TextBlock,
@@ -13,123 +13,63 @@ import {
   ButtonRow,
   InputField,
   RatingScale,
-} from './primitives'
+} from '../../primitives/boxes'
 import './behaviorChat.css'
 
-function Message({ msg, onPickChip, disabled }) {
-  switch (msg.type) {
-    case 'agent-text':
-      return (
-        <div className="bp-msg bp-msg--agent">
-          <TextBlock>{msg.text}</TextBlock>
-          {msg.hints?.length > 0 && (
-            <div className="bp-hints" role="group" aria-label="Hints">
-              {msg.hints.map((h) => (
-                <span className="bp-hint" key={h}>
-                  {h}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    case 'user':
-      return (
-        <div className="bp-msg bp-msg--user">
-          <TextBlock>{msg.text}</TextBlock>
-        </div>
-      )
-    case 'agent-loading':
-      return (
-        <div className="bp-msg bp-msg--agent bp-msg--muted">
-          <LoadingIndicator message={msg.text} />
-        </div>
-      )
-    case 'agent-result':
-      return (
-        <div className="bp-msg bp-msg--agent">
-          {msg.badge && (
-            <div className="bp-msg__badge-row">
-              <StatusBadge label={msg.badge.label} state={msg.badge.state} />
-            </div>
-          )}
-          {msg.lines.map((l, i) => (
-            <div key={i} className={i === 0 ? 'bp-line-strong' : 'bp-line'}>
-              {l}
-            </div>
-          ))}
-        </div>
-      )
-    case 'agent-badge':
-      return (
-        <div className="bp-msg bp-msg--agent">
-          <StatusBadge label={msg.badge.label} state={msg.badge.state} />
-        </div>
-      )
-    case 'agent-badge-text':
-      return (
-        <div className="bp-msg bp-msg--agent">
-          <div className="bp-msg__badge-row">
-            <StatusBadge label={msg.badge.label} state={msg.badge.state} />
-          </div>
-          <TextBlock>{msg.text}</TextBlock>
-          {msg.max && <StepTracker attempt={msg.attempt} max={msg.max} />}
-        </div>
-      )
-    case 'chips':
-      return (
-        <div className="bp-msg bp-msg--agent bp-msg--bare">
-          <ChipGroup options={msg.options} onPick={onPickChip} disabled={disabled} />
-        </div>
-      )
-    case 'status-list':
-      return (
-        <div className="bp-msg bp-msg--agent bp-msg--bare">
-          <StatusList items={msg.items} />
-        </div>
-      )
-    case 'confirm-card':
-      return (
-        <div className="bp-msg bp-msg--agent">
-          <TextBlock>
-            <strong>{msg.title}</strong>
-          </TextBlock>
-          <KvTable rows={msg.rows} />
-        </div>
-      )
-    case 'escalate-card':
-      return (
-        <div className="bp-msg bp-msg--agent bp-msg--escalate">
-          <TextBlock>{msg.reason}</TextBlock>
-          {msg.rows.length > 0 && <KvTable rows={msg.rows} />}
-        </div>
-      )
-    case 'done-card':
-      return <DoneCard msg={msg} />
-    default:
-      return null
-  }
+// Generic box-id -> renderer lookup. `Message` below no longer switches on a
+// per-node-type `msg.type` — it just iterates `msg.boxes` (populated by
+// registry.js's execute() functions) through this fixed, type-agnostic map.
+const BOX_COMPONENTS = {
+  statusBadge: (props) => props?.label && <StatusBadge label={props.label} state={props.state} />,
+  textBlock: (props) => props?.text != null && <TextBlock>{props.strong ? <strong>{props.text}</strong> : props.text}</TextBlock>,
+  chipGroup: (props, chatCtx) =>
+    props?.options?.length > 0 && <ChipGroup options={props.options} onPick={chatCtx.onPickChip} disabled={chatCtx.disabled} />,
+  kvTable: (props) => props?.rows?.length > 0 && <KvTable rows={props.rows} />,
+  statusList: (props) => props?.items && <StatusList items={props.items} />,
+  loadingIndicator: (props) => props && <LoadingIndicator message={props.message} />,
+  stepTracker: (props) => props && (props.items?.length > 0 || props.max) && <StepTracker {...props} />,
+  buttonRow: (props) => props?.actions?.length > 0 && <ButtonRow actions={props.actions} onAct={() => {}} />,
+  ratingScale: () => null, // rendered inline by DoneMessage below (needs local rating state)
 }
 
-function DoneCard({ msg }) {
+function Message({ msg, onPickChip, disabled }) {
+  const chatCtx = { onPickChip, disabled }
+  const boxes = msg.boxes || []
+  const className = `bp-msg bp-msg--${msg.variant || 'agent'}`
+
+  if (boxes.includes('ratingScale')) {
+    return <DoneMessage msg={msg} boxes={boxes} chatCtx={chatCtx} className={className} />
+  }
+
+  return (
+    <div className={className}>
+      {boxes.map((boxId) => {
+        const render = BOX_COMPONENTS[boxId]
+        if (!render) return null
+        const node = render(msg[boxId], chatCtx)
+        return node ? <span key={boxId}>{node}</span> : null
+      })}
+    </div>
+  )
+}
+
+// `ratingScale` needs local component state (the picked rating), so the
+// generic BOX_COMPONENTS map delegates to this small wrapper instead.
+function DoneMessage({ msg, boxes, chatCtx }) {
   const [rating, setRating] = useState(null)
   return (
-    <div className="bp-msg bp-msg--agent bp-msg--done">
-      <div className="bp-msg__badge-row">
-        <StatusBadge label="Confirmed" state="success" />
+    <div className="bp-msg bp-msg--done">
+      {boxes
+        .filter((b) => b !== 'ratingScale')
+        .map((boxId) => {
+          const render = BOX_COMPONENTS[boxId]
+          const node = render?.(msg[boxId], chatCtx)
+          return node ? <span key={boxId}>{node}</span> : null
+        })}
+      <div className="bp-rating-block">
+        <div className="bp-rating-block__label">How was your experience?</div>
+        <RatingScale value={rating} onRate={setRating} />
       </div>
-      <TextBlock>
-        <strong>{msg.title}</strong>
-        <br />
-        {msg.message}
-      </TextBlock>
-      <KvTable rows={msg.rows} />
-      {msg.collectRating && (
-        <div className="bp-rating-block">
-          <div className="bp-rating-block__label">How was your experience?</div>
-          <RatingScale value={rating} onRate={setRating} />
-        </div>
-      )}
     </div>
   )
 }
@@ -158,7 +98,11 @@ export default function BehaviorChat() {
         <div>
           <div className="behavior-chat__name">Delivery Assistant</div>
           <div className="behavior-chat__status">
-            {engine.status === 'running' && !engine.awaiting ? 'Typing…' : engine.status === 'finished' ? 'Finished' : 'Online'}
+            {engine.status === 'running' && !engine.awaiting
+              ? 'Typing…'
+              : engine.status === 'finished' || engine.status === 'escalated'
+                ? 'Finished'
+                : 'Online'}
           </div>
         </div>
       </div>
@@ -166,7 +110,7 @@ export default function BehaviorChat() {
       <div className="behavior-chat__body" ref={scrollRef}>
         {engine.status === 'idle' && (
           <div className="bp-empty">
-            <p>An 11-behavior dummy conversation — real collect/branch/loop logic, not a scripted replay.</p>
+            <p>A 10-primitive dummy conversation — real collect/branch/loop logic, not a scripted replay.</p>
           </div>
         )}
         {engine.transcript.map((msg) => (
@@ -186,7 +130,7 @@ export default function BehaviorChat() {
             value={draft}
             onChange={setDraft}
             onSubmit={engine.submitCollect}
-            placeholder={engine.awaiting.field.placeholder}
+            placeholder={engine.awaiting.field?.placeholder}
             autoFocus
           />
         )}
@@ -195,7 +139,7 @@ export default function BehaviorChat() {
 
         {engine.awaiting?.type === 'confirm' && <ButtonRow actions={engine.awaiting.actions} onAct={engine.confirmAction} />}
 
-        {engine.status === 'finished' && (
+        {(engine.status === 'finished' || engine.status === 'escalated') && (
           <button className="bp-btn bp-btn--outline bp-btn--block" onClick={engine.start}>
             ↺ Start Over
           </button>

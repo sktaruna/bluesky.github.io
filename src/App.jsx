@@ -1,19 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ReactFlow, Background, BackgroundVariant, applyNodeChanges, applyEdgeChanges, reconnectEdge } from '@xyflow/react'
-import { PRIMITIVE, PRIMITIVE_META } from './constants/primitives'
+import { PRIMITIVES } from './primitives/registry'
 import { EXAMPLES, DEFAULT_EXAMPLE_KEY } from './graph/examples'
-import {
-  createNode,
-  removeNode,
-  updateNodeData,
-  updateNodeConfig,
-  addBranch,
-  removeBranch,
-  updateBranch,
-  syncGotoEdge,
-  addOrReplaceEdge,
-} from './graph/graphOps'
-import { findEntryNodeId, resolveOutcome, mockAskPlaceholder, computeSetValue, applyDoEffects } from './trace/traceEngine'
+import { createNode, removeNode, updateNodeData, updateNodeConfig, setInlineTarget, addOrReplaceEdge } from './graph/graphOps'
+import { findEntryNodeId, draftValueFor, step as traceStep } from './trace/traceEngine'
 import CapNode from './components/nodes/CapNode'
 import CapEdge from './components/edges/CapEdge'
 import EdgeMarkers from './components/edges/EdgeMarkers'
@@ -27,7 +17,15 @@ import './App.css'
 const nodeTypes = { capNode: CapNode }
 const edgeTypes = { capEdge: CapEdge }
 
-const initialTrace = { status: 'idle', activeNodeId: null, prevActiveNodeId: null, datapoints: {}, askDraft: '', history: [] }
+const initialTrace = {
+  status: 'idle',
+  activeNodeId: null,
+  prevActiveNodeId: null,
+  datapoints: {},
+  draftValue: null,
+  attemptCounts: {},
+  history: [],
+}
 
 function buildInitialGraphsByExample() {
   return Object.fromEntries(EXAMPLES.map((ex) => [ex.key, ex.build()]))
@@ -36,9 +34,13 @@ function buildInitialMapByExample(value) {
   return Object.fromEntries(EXAMPLES.map((ex) => [ex.key, value]))
 }
 
+function describeNode(node) {
+  return `${node.id}::${PRIMITIVES[node.data.type].meta.label} — ${node.data.label}`
+}
+
 export default function App() {
   const [viewMode, setViewMode] = useState('graph')
-  const [exampleKey, setExampleKey] = useState(DEFAULT_EXAMPLE_KEY)
+  const [exampleKey] = useState(DEFAULT_EXAMPLE_KEY)
   const [graphsByExample, setGraphsByExample] = useState(buildInitialGraphsByExample)
   const [selectionByExample, setSelectionByExample] = useState(() => buildInitialMapByExample(null))
   const [traceByExample, setTraceByExample] = useState(() => buildInitialMapByExample(initialTrace))
@@ -48,23 +50,19 @@ export default function App() {
   const selectedNodeId = selectionByExample[exampleKey]
   const trace = traceByExample[exampleKey]
 
-  const setSelectedNodeId = useCallback(
-    (id) => setSelectionByExample((s) => ({ ...s, [exampleKey]: id })),
-    [exampleKey],
-  )
+  const setSelectedNodeId = useCallback((id) => setSelectionByExample((s) => ({ ...s, [exampleKey]: id })), [exampleKey])
   const setTrace = useCallback(
-    (updater) =>
-      setTraceByExample((t) => ({ ...t, [exampleKey]: typeof updater === 'function' ? updater(t[exampleKey]) : updater })),
+    (updater) => setTraceByExample((t) => ({ ...t, [exampleKey]: typeof updater === 'function' ? updater(t[exampleKey]) : updater })),
     [exampleKey],
   )
   const setGraph = useCallback(
-    (updater) =>
-      setGraphsByExample((g) => ({ ...g, [exampleKey]: typeof updater === 'function' ? updater(g[exampleKey]) : updater })),
+    (updater) => setGraphsByExample((g) => ({ ...g, [exampleKey]: typeof updater === 'function' ? updater(g[exampleKey]) : updater })),
     [exampleKey],
   )
-  const setNodes = useCallback((updater) => {
-    setGraph((g) => ({ ...g, nodes: typeof updater === 'function' ? updater(g.nodes) : updater }))
-  }, [setGraph])
+  const setNodes = useCallback(
+    (updater) => setGraph((g) => ({ ...g, nodes: typeof updater === 'function' ? updater(g.nodes) : updater })),
+    [setGraph],
+  )
 
   // ---------- Canvas editing ----------
 
@@ -75,11 +73,12 @@ export default function App() {
         let nextNodes = applyNodeChanges(changes, g.nodes)
         let nextEdges = g.edges
         if (removedIds.length) {
-          nextNodes = nextNodes.map((n) =>
-            n.data.primitive === PRIMITIVE.GOTO && removedIds.includes(n.data.config.targetId)
-              ? { ...n, data: { ...n.data, config: { ...n.data.config, targetId: null } } }
-              : n,
-          )
+          nextNodes = nextNodes.map((n) => {
+            const spec = PRIMITIVES[n.data.type]
+            return spec?.canvas.inlineTarget && removedIds.includes(n.data.config.target)
+              ? { ...n, data: { ...n.data, config: { ...n.data.config, target: null } } }
+              : n
+          })
           nextEdges = nextEdges.filter((e) => !removedIds.includes(e.source) && !removedIds.includes(e.target))
         }
         return { nodes: nextNodes, edges: nextEdges }
@@ -89,137 +88,101 @@ export default function App() {
     [selectedNodeId, setGraph, setSelectedNodeId],
   )
 
-  const onEdgesChange = useCallback((changes) => {
-    setGraph((g) => ({ ...g, edges: applyEdgeChanges(changes, g.edges) }))
-  }, [setGraph])
+  const onEdgesChange = useCallback(
+    (changes) => setGraph((g) => ({ ...g, edges: applyEdgeChanges(changes, g.edges) })),
+    [setGraph],
+  )
 
-  const onConnect = useCallback((connection) => {
-    setGraph((g) => {
-      const sourceNode = g.nodes.find((n) => n.id === connection.source)
-      if (!sourceNode) return g
-      if (sourceNode.data.primitive === PRIMITIVE.GOTO) {
-        return { nodes: updateNodeConfig(g.nodes, connection.source, { targetId: connection.target }), edges: syncGotoEdge(g.nodes, g.edges, connection.source, connection.target) }
-      }
-      return { nodes: g.nodes, edges: addOrReplaceEdge(g.edges, connection) }
-    })
-  }, [setGraph])
-
-  const onReconnect = useCallback((oldEdge, newConnection) => {
-    setGraph((g) => {
-      if (oldEdge.data?.isGoto) {
-        return {
-          nodes: updateNodeConfig(g.nodes, oldEdge.source, { targetId: newConnection.target }),
-          edges: syncGotoEdge(g.nodes, g.edges, oldEdge.source, newConnection.target),
+  const onConnect = useCallback(
+    (connection) => {
+      setGraph((g) => {
+        const sourceNode = g.nodes.find((n) => n.id === connection.source)
+        if (!sourceNode) return g
+        const spec = PRIMITIVES[sourceNode.data.type]
+        if (spec?.canvas.inlineTarget) {
+          const r = setInlineTarget(g.nodes, g.edges, connection.source, connection.target)
+          return r
         }
-      }
-      return { nodes: g.nodes, edges: reconnectEdge(oldEdge, newConnection, g.edges) }
-    })
-  }, [setGraph])
+        return { nodes: g.nodes, edges: addOrReplaceEdge(g.edges, connection) }
+      })
+    },
+    [setGraph],
+  )
+
+  const onReconnect = useCallback(
+    (oldEdge, newConnection) => {
+      setGraph((g) => {
+        if (oldEdge.data?.isInlineTarget) {
+          return setInlineTarget(g.nodes, g.edges, oldEdge.source, newConnection.target)
+        }
+        return { nodes: g.nodes, edges: reconnectEdge(oldEdge, newConnection, g.edges) }
+      })
+    },
+    [setGraph],
+  )
 
   const onNodeClick = useCallback((_evt, node) => setSelectedNodeId(node.id), [setSelectedNodeId])
   const onPaneClick = useCallback(() => setSelectedNodeId(null), [setSelectedNodeId])
 
-  const handleAddNode = useCallback((primitive) => {
-    setGraph((g) => {
-      const count = g.nodes.length
-      const position = { x: 120 + ((count * 60) % 900), y: 60 + Math.floor((count * 60) / 900) * 160 }
-      const node = createNode(primitive, position)
-      setSelectedNodeId(node.id)
-      return { nodes: [...g.nodes, node], edges: g.edges }
-    })
-  }, [setGraph, setSelectedNodeId])
+  const handleAddNode = useCallback(
+    (type) => {
+      setGraph((g) => {
+        const count = g.nodes.length
+        const position = { x: 120 + ((count * 60) % 900), y: 60 + Math.floor((count * 60) / 900) * 160 }
+        const node = createNode(type, position)
+        setSelectedNodeId(node.id)
+        return { nodes: [...g.nodes, node], edges: g.edges }
+      })
+    },
+    [setGraph, setSelectedNodeId],
+  )
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null
 
-  const configGraphOps = useMemo(() => {
-    if (!selectedNode) return null
-    const id = selectedNode.id
-    return {
-      addBranch: () => setNodes((nds) => addBranch(nds, id)),
-      removeBranch: (branchId) =>
-        setGraph((g) => {
-          const r = removeBranch(g.nodes, g.edges, id, branchId)
-          return { nodes: r.nodes, edges: r.edges }
-        }),
-      updateBranch: (branchId, patch) => setNodes((nds) => updateBranch(nds, id, branchId, patch)),
-      setGotoTarget: (targetId) =>
-        setGraph((g) => ({
-          nodes: updateNodeConfig(g.nodes, id, { targetId }),
-          edges: syncGotoEdge(g.nodes, g.edges, id, targetId),
-        })),
-    }
-  }, [selectedNode, setNodes, setGraph])
-
   // ---------- Trace execution ----------
-
-  function enterNode(node, datapointsIn) {
-    let datapoints = datapointsIn
-    let endStatus = null
-    let askDraft = ''
-
-    if (node.data.primitive === PRIMITIVE.SET) {
-      datapoints = { ...datapoints, [node.data.config.datapoint]: computeSetValue(node.data.config) }
-    } else if (node.data.primitive === PRIMITIVE.DO) {
-      datapoints = applyDoEffects(node, datapoints)
-      if (node.data.config.mode === 'escalate') endStatus = 'escalated'
-      if (node.data.config.mode === 'finish') endStatus = 'complete'
-    } else if (node.data.primitive === PRIMITIVE.ASK) {
-      askDraft = mockAskPlaceholder(node.data.config.datapoint)
-    }
-
-    return { datapoints, endStatus, askDraft }
-  }
 
   const handleStart = useCallback(() => {
     const entryId = findEntryNodeId(nodes)
     const entryNode = nodes.find((n) => n.id === entryId)
     if (!entryNode) return
-    const { datapoints, endStatus, askDraft } = enterNode(entryNode, {})
     setTrace({
-      status: endStatus || 'running',
+      status: 'running',
       activeNodeId: entryId,
       prevActiveNodeId: null,
-      datapoints,
-      askDraft,
+      datapoints: { ...(graph.initialDatapoints || {}) },
+      draftValue: draftValueFor(entryNode),
+      attemptCounts: {},
       history: [describeNode(entryNode)],
     })
-  }, [nodes, setTrace])
+  }, [nodes, graph, setTrace])
 
   const handleReset = useCallback(() => setTrace(initialTrace), [setTrace])
 
-  const handleStep = useCallback(() => {
-    setTrace((t) => {
-      if (t.status !== 'running') return t
-      const activeNode = nodes.find((n) => n.id === t.activeNodeId)
-      if (!activeNode) return t
+  const handleStep = useCallback(async () => {
+    if (trace.status !== 'running') return
+    const activeNode = nodes.find((n) => n.id === trace.activeNodeId)
+    if (!activeNode) return
 
-      let datapoints = t.datapoints
-      if (activeNode.data.primitive === PRIMITIVE.ASK) {
-        datapoints = { ...datapoints, [activeNode.data.config.datapoint]: t.askDraft }
-      }
-
-      const outcome = resolveOutcome(activeNode, nodes, edges, datapoints)
-
-      if (outcome.kind === 'complete') return { ...t, status: 'complete', datapoints }
-      if (outcome.kind === 'escalated') return { ...t, status: 'escalated', datapoints }
-      if (outcome.kind === 'dead-end') return { ...t, status: 'complete', datapoints }
-
-      const nextNode = nodes.find((n) => n.id === outcome.nextId)
-      if (!nextNode) return { ...t, status: 'complete', datapoints }
-
-      const entered = enterNode(nextNode, datapoints)
-      return {
-        status: entered.endStatus || 'running',
-        activeNodeId: nextNode.id,
-        prevActiveNodeId: activeNode.id,
-        datapoints: entered.datapoints,
-        askDraft: entered.askDraft,
-        history: [...t.history, describeNode(nextNode)],
-      }
+    const result = await traceStep({
+      node: activeNode,
+      nodes,
+      edges,
+      datapoints: trace.datapoints,
+      draftValue: trace.draftValue,
+      attemptCounts: trace.attemptCounts,
     })
-  }, [nodes, edges, setTrace])
 
-  const handleAskDraftChange = useCallback((val) => setTrace((t) => ({ ...t, askDraft: val })), [setTrace])
+    setTrace((t) => {
+      const next = { ...t, ...result }
+      if (result.activeNodeId && result.activeNodeId !== t.activeNodeId) {
+        const landedOn = nodes.find((n) => n.id === result.activeNodeId)
+        if (landedOn) next.history = [...t.history, describeNode(landedOn)]
+      }
+      return next
+    })
+  }, [trace, nodes, edges, setTrace])
+
+  const handleDraftChange = useCallback((val) => setTrace((t) => ({ ...t, draftValue: val })), [setTrace])
 
   const handleEditDatapoint = useCallback(
     (key, value) => setTrace((t) => ({ ...t, datapoints: { ...t.datapoints, [key]: value } })),
@@ -240,33 +203,44 @@ export default function App() {
         const isActive = trace.status !== 'idle' && n.id === trace.activeNodeId
         const isTraced = trace.history?.some((h) => h.startsWith(n.id + '::'))
         const data = { ...n.data, isActive, isTraced }
-        if (n.data.primitive === PRIMITIVE.GOTO && n.data.config.targetId) {
-          const target = nodes.find((t) => t.id === n.data.config.targetId)
+        const spec = PRIMITIVES[n.data.type]
+        if (spec?.canvas.inlineTarget && n.data.config.target) {
+          const target = nodes.find((t) => t.id === n.data.config.target)
           data.targetLabel = target?.data.label
+        }
+        // Every node shows where each of its outgoing handles currently
+        // routes to (or "not connected"), and a compact list of what feeds
+        // into it — so a freshly-added, unwired node isn't a dead-looking
+        // box with no clue where it can go or what leads into it.
+        if (spec && !spec.canvas.inlineTarget) {
+          const handles = spec.next({ config: n.data.config }).handles || []
+          data.routesOut = handles.map((h) => {
+            const edge = edges.find((e) => e.source === n.id && e.sourceHandle === h.id)
+            const target = edge ? nodes.find((t) => t.id === edge.target) : null
+            return { id: h.id, label: h.labelFn ? h.labelFn() : h.id, targetLabel: target?.data.label || null }
+          })
+        }
+        const incomingEdges = edges.filter((e) => e.target === n.id)
+        if (incomingEdges.length) {
+          data.routesIn = incomingEdges.map((e) => {
+            const source = nodes.find((s) => s.id === e.source)
+            return source?.data.label || e.source
+          })
         }
         return { ...n, data, selected: n.id === selectedNodeId }
       }),
-    [nodes, selectedNodeId, trace],
+    [nodes, edges, selectedNodeId, trace],
   )
 
   const renderedEdges = useMemo(
     () =>
       edges.map((e) => {
-        const sourceNode = nodes.find((n) => n.id === e.source)
-        let conditionLabel = null
-        let isDefault = false
-        if (sourceNode?.data.primitive === PRIMITIVE.BRANCH) {
-          const branch = sourceNode.data.branches?.find((b) => b.id === e.sourceHandle)
-          if (branch) {
-            conditionLabel = branch.isDefault ? null : branch.condition
-            isDefault = branch.isDefault
-          }
-        }
-        const isActive =
-          trace.status !== 'idle' && trace.prevActiveNodeId === e.source && trace.activeNodeId === e.target
-        return { ...e, data: { ...e.data, conditionLabel, isDefault, isActive }, reconnectable: true }
+        const isDefaultish = e.sourceHandle === 'else' || e.sourceHandle === 'onError'
+        const conditionLabel = e.sourceHandle && e.sourceHandle !== 'out' && e.sourceHandle !== 'target' ? e.sourceHandle : null
+        const isActive = trace.status !== 'idle' && trace.prevActiveNodeId === e.source && trace.activeNodeId === e.target
+        return { ...e, data: { ...e.data, conditionLabel, isDefault: isDefaultish, isActive }, reconnectable: true }
       }),
-    [edges, nodes, trace],
+    [edges, trace],
   )
 
   const activeNode = nodes.find((n) => n.id === trace.activeNodeId) || null
@@ -278,8 +252,6 @@ export default function App() {
         onStart={handleStart}
         onStep={handleStep}
         onReset={handleReset}
-        activeExampleKey={exampleKey}
-        onExampleChange={setExampleKey}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
@@ -293,7 +265,6 @@ export default function App() {
           <div className="canvas-wrap">
             <EdgeMarkers />
             <ReactFlow
-              key={exampleKey}
               nodes={renderedNodes}
               edges={renderedEdges}
               nodeTypes={nodeTypes}
@@ -321,7 +292,6 @@ export default function App() {
               onUpdateLabel={(label) => setNodes((nds) => updateNodeData(nds, selectedNodeId, { label }))}
               onUpdateConfig={(patch) => setNodes((nds) => updateNodeConfig(nds, selectedNodeId, patch))}
               onDelete={handleDeleteSelected}
-              graphOps={configGraphOps}
             />
           ) : (
             <TracePanel
@@ -329,8 +299,9 @@ export default function App() {
               activeNode={activeNode}
               datapoints={trace.datapoints}
               history={trace.history}
-              askDraft={trace.askDraft}
-              onAskDraftChange={handleAskDraftChange}
+              draftValue={trace.draftValue}
+              attemptCounts={trace.attemptCounts}
+              onDraftChange={handleDraftChange}
               onEditDatapoint={handleEditDatapoint}
             />
           )}
@@ -338,8 +309,4 @@ export default function App() {
       )}
     </div>
   )
-}
-
-function describeNode(node) {
-  return `${node.id}::${PRIMITIVE_META[node.data.primitive].label} — ${node.data.label}`
 }

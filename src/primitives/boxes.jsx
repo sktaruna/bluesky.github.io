@@ -78,7 +78,20 @@ export function LoadingIndicator({ message }) {
   )
 }
 
-export function StepTracker({ attempt, max }) {
+export function StepTracker({ attempt, max, items }) {
+  // Numbered-list mode (guide's instructions) vs. attempt-counter mode
+  // (retry progress on collect/guide) — disambiguated by which props are passed.
+  if (items && items.length > 0) {
+    return (
+      <ol className="bp-step-tracker bp-step-tracker--list">
+        {items.map((it, i) => (
+          <li className="bp-step-tracker__item" key={i}>
+            {it}
+          </li>
+        ))}
+      </ol>
+    )
+  }
   if (!max) return null
   return (
     <div className="bp-step-tracker" role="progressbar" aria-valuenow={attempt} aria-valuemin={1} aria-valuemax={max}>
