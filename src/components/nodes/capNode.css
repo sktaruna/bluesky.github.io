@@ -259,8 +259,8 @@
 
 .cap-node__handle-label {
   position: absolute;
-  right: 16px;
-  transform: translateY(-50%);
+  bottom: -16px;
+  transform: translateX(-50%);
   font-size: 9px;
   font-weight: 600;
   color: var(--text-muted);

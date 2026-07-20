@@ -23,7 +23,7 @@ function CapNode({ data, selected }) {
 
   return (
     <div className={classes}>
-      <Handle type="target" position={Position.Left} className="cap-handle" />
+      <Handle type="target" position={Position.Top} className="cap-handle" />
 
       {routesIn?.length > 0 && (
         <div className="cap-node__routes-in" title={`Routed here from: ${routesIn.join(', ')}`}>
@@ -63,27 +63,27 @@ function CapNode({ data, selected }) {
       {handles.length > 1 ? (
         <div className="cap-node__branch-handles">
           {handles.map((h, i) => {
-            const top = branchHandleTop(i, handles.length)
+            const left = branchHandleLeft(i, handles.length)
             return (
               <div key={h.id}>
-                <span className="cap-node__handle-label" style={{ top: `${top}%` }}>
+                <span className="cap-node__handle-label" style={{ left: `${left}%` }}>
                   {h.labelFn ? h.labelFn() : h.id}
                 </span>
-                <Handle id={h.id} type="source" position={Position.Right} className="cap-handle cap-handle--branch" style={{ top: `${top}%` }} />
+                <Handle id={h.id} type="source" position={Position.Bottom} className="cap-handle cap-handle--branch" style={{ left: `${left}%` }} />
               </div>
             )
           })}
         </div>
       ) : handles.length === 1 ? (
-        <Handle type="source" position={Position.Right} id={handles[0].id} className="cap-handle" />
+        <Handle type="source" position={Position.Bottom} id={handles[0].id} className="cap-handle" />
       ) : null}
     </div>
   )
 }
 
-function branchHandleTop(index, count) {
-  const usable = 70 // percentage band used for handles, leaving header room
-  const start = 26
+function branchHandleLeft(index, count) {
+  const usable = 70 // percentage band used for handles, leaving edge room
+  const start = 15
   if (count <= 1) return start
   return start + (usable * index) / (count - 1)
 }

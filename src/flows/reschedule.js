@@ -20,7 +20,7 @@ export const RESCHEDULE_FLOW = {
       id: 'welcome_choice',
       type: 'choice',
       label: 'Welcome Choice',
-      position: { x: 40, y: 360 },
+      position: { x: 600, y: 0 },
       config: {
         prompt: 'What would you like to do?',
         options: [
@@ -33,7 +33,7 @@ export const RESCHEDULE_FLOW = {
       id: 'collect_order_id',
       type: 'collect',
       label: 'Collect Order ID',
-      position: { x: 360, y: 520 },
+      position: { x: 1200, y: 170 },
       config: {
         prompt: "Let's find your order. Please enter your Order ID below.",
         field: { name: 'order_id', type: 'text', placeholder: 'e.g. ORD-2026-78432' },
@@ -45,7 +45,7 @@ export const RESCHEDULE_FLOW = {
       id: 'lookup_order',
       type: 'action',
       label: 'Look Up Order',
-      position: { x: 680, y: 520 },
+      position: { x: 1200, y: 340 },
       config: {
         call: 'lookupOrder',
         inputs: [{ key: 'order_id', value: '{{order_id}}' }],
@@ -67,7 +67,7 @@ export const RESCHEDULE_FLOW = {
       id: 'order_not_found',
       type: 'escalate',
       label: 'Order Not Found',
-      position: { x: 1000, y: 680 },
+      position: { x: 1800, y: 510 },
       config: {
         to: 'support',
         message: "We couldn't locate an order with that ID — a support agent can help track it down.",
@@ -78,7 +78,7 @@ export const RESCHEDULE_FLOW = {
       id: 'check_status',
       type: 'if',
       label: 'Check Order Status',
-      position: { x: 1000, y: 360 },
+      position: { x: 600, y: 510 },
       config: {
         condition: "order_status in ['in_transit','delivered','cancelled']",
         thenText: 'Your order status is "{{order_status}}", so it can no longer be rescheduled through this channel.',
@@ -89,7 +89,7 @@ export const RESCHEDULE_FLOW = {
       id: 'guide_not_eligible',
       type: 'guide',
       label: 'Explain Not Eligible',
-      position: { x: 1320, y: 200 },
+      position: { x: 300, y: 680 },
       config: {
         errorContext: "Since your order is already {{order_status}}, it can't be automatically rescheduled through this channel.",
         instructions: [
@@ -104,7 +104,7 @@ export const RESCHEDULE_FLOW = {
       id: 'not_eligible',
       type: 'escalate',
       label: 'Not Eligible',
-      position: { x: 1640, y: 200 },
+      position: { x: 300, y: 850 },
       config: {
         to: 'support',
         message: 'Your order status changed, so the reschedule can no longer be completed automatically.',
@@ -118,7 +118,7 @@ export const RESCHEDULE_FLOW = {
       id: 'check_slots',
       type: 'investigate',
       label: 'Check Available Slots',
-      position: { x: 1320, y: 520 },
+      position: { x: 1200, y: 680 },
       config: {
         title: 'Checking available delivery slots...',
         actions: [{ label: 'Slot', call: 'checkSlot', forEachIn: 'candidate_dates', resultField: 'available_slots' }],
@@ -129,7 +129,7 @@ export const RESCHEDULE_FLOW = {
       id: 'collect_new_date',
       type: 'collect',
       label: 'Collect New Date',
-      position: { x: 1640, y: 520 },
+      position: { x: 1200, y: 850 },
       config: {
         prompt: 'What new date works for you?',
         field: { name: 'chosen_date', type: 'text', placeholder: 'e.g. 2026-07-25' },
@@ -143,7 +143,7 @@ export const RESCHEDULE_FLOW = {
       id: 'escalate_to_human',
       type: 'escalate',
       label: 'Escalate — Too Many Attempts',
-      position: { x: 1960, y: 700 },
+      position: { x: 2100, y: 1020 },
       config: {
         to: 'human',
         message: "That still doesn't match an available slot after a few tries — let's get you to a person.",
@@ -157,7 +157,7 @@ export const RESCHEDULE_FLOW = {
       id: 'confirm_reschedule',
       type: 'confirm',
       label: 'Confirm Reschedule',
-      position: { x: 1960, y: 520 },
+      position: { x: 1200, y: 1020 },
       config: {
         title: 'Please confirm before I proceed',
         rows: [
@@ -176,14 +176,14 @@ export const RESCHEDULE_FLOW = {
       id: 'goto_change_date',
       type: 'goto',
       label: 'Return To Date Selection',
-      position: { x: 2280, y: 640 },
+      position: { x: 1500, y: 1190 },
       config: { target: 'collect_new_date' },
     },
     {
       id: 'do_reschedule',
       type: 'action',
       label: 'Reschedule Order',
-      position: { x: 2280, y: 460 },
+      position: { x: 900, y: 1190 },
       config: {
         call: 'rescheduleOrder',
         inputs: [
@@ -204,7 +204,7 @@ export const RESCHEDULE_FLOW = {
       id: 'done_success',
       type: 'done',
       label: 'Reschedule Confirmed',
-      position: { x: 2600, y: 460 },
+      position: { x: 900, y: 1360 },
       config: {
         message: 'Your delivery has been successfully rescheduled.',
         summaryRows: [
@@ -220,7 +220,7 @@ export const RESCHEDULE_FLOW = {
       id: 'investigate_before_escalate',
       type: 'investigate',
       label: 'Check Account Before Escalating',
-      position: { x: 360, y: 140 },
+      position: { x: 0, y: 170 },
       config: {
         title: 'Checking your account...',
         actions: [
@@ -234,7 +234,7 @@ export const RESCHEDULE_FLOW = {
       id: 'escalate_direct',
       type: 'escalate',
       label: 'Escalate Direct',
-      position: { x: 680, y: 140 },
+      position: { x: 0, y: 340 },
       config: {
         to: 'human',
         message: "I'm connecting you with a human agent now.",
